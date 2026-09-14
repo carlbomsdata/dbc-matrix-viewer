@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Syntax-check app.js
+        run: node --check app.js
+
+      - name: Bit-layout tests
+        run: node --test
+
+      - name: Verify required files exist
+        run: |
+          missing=0
+          for f in index.html styles.css app.js .nojekyll LICENSE README.md; do
+            if [ ! -f "$f" ]; then
+              echo "::error::Missing required file: $f"
+              missing=1
+            fi
+          done
+          exit $missing

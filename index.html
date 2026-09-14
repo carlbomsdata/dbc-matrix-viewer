@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>dbc-matrix-viewer</title>
+    <meta
+      name="description"
+      content="Map the J1939 Proprietary B PGN range from your CAN .dbc files and drill into any message's byte x bit layout. Read in the browser, never uploaded."
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%23111'/%3E%3Cg fill='%23fff'%3E%3Crect x='3' y='3' width='3' height='3' rx='1'/%3E%3Crect x='7' y='3' width='3' height='3' rx='1' opacity='.35'/%3E%3Crect x='11' y='3' width='2' height='3' rx='1' opacity='.35'/%3E%3Crect x='3' y='7' width='3' height='3' rx='1' opacity='.35'/%3E%3Crect x='7' y='7' width='3' height='3' rx='1'/%3E%3Crect x='11' y='7' width='2' height='3' rx='1'/%3E%3Crect x='3' y='11' width='3' height='2' rx='1' opacity='.35'/%3E%3Crect x='7' y='11' width='3' height='2' rx='1' opacity='.35'/%3E%3Crect x='11' y='11' width='2' height='2' rx='1' opacity='.35'/%3E%3C/g%3E%3C/svg%3E"
+    />
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+
+    <header class="topbar">
+      <div class="brand" id="brand">
+        <svg class="brand-mark" viewBox="0 0 16 16" aria-hidden="true">
+          <rect x="0" y="0" width="4" height="4" rx="1" />
+          <rect x="6" y="0" width="4" height="4" rx="1" opacity=".3" />
+          <rect x="12" y="0" width="4" height="4" rx="1" opacity=".3" />
+          <rect x="0" y="6" width="4" height="4" rx="1" opacity=".3" />
+          <rect x="6" y="6" width="4" height="4" rx="1" />
+          <rect x="12" y="6" width="4" height="4" rx="1" />
+          <rect x="0" y="12" width="4" height="4" rx="1" opacity=".3" />
+          <rect x="6" y="12" width="4" height="4" rx="1" opacity=".3" />
+          <rect x="12" y="12" width="4" height="4" rx="1" opacity=".3" />
+        </svg>
+        <span>dbc<span class="brand-dim">-matrix-viewer</span></span>
+      </div>
+
+      <span class="counts" id="fileCounts"></span>
+
+      <div class="top-actions" id="topActions" hidden>
+        <label class="field">
+          <span class="sr-only">Filter messages</span>
+          <svg class="field-icon" viewBox="0 0 16 16" aria-hidden="true">
+            <circle cx="7" cy="7" r="4.5" fill="none" stroke="currentColor" stroke-width="1.6" />
+            <path d="M10.4 10.4 14 14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+          </svg>
+          <input
+            id="filter"
+            type="search"
+            placeholder="Filter by message, signal, id or PGN"
+            autocomplete="off"
+            spellcheck="false"
+          />
+        </label>
+        <button type="button" id="addFile">Add file</button>
+      </div>
+    </header>
+
+    <main id="main">
+      <section id="panelEmpty" class="panel">
+        <div id="drop" class="drop" role="button" tabindex="0" aria-label="Choose one or more .dbc files to open">
+          <svg class="drop-art" viewBox="0 0 126 76" aria-hidden="true">
+            <g class="drop-art-grid">
+              <rect x="0.5" y="0.5" width="17" height="11" rx="2" class="tint" style="--h: 265; --c: 0.014" />
+              <rect x="20.5" y="0.5" width="17" height="11" rx="2" />
+              <rect x="40.5" y="0.5" width="17" height="11" rx="2" />
+              <rect x="60.5" y="0.5" width="17" height="11" rx="2" class="tint" style="--h: 265; --c: 0.014" />
+              <rect x="80.5" y="0.5" width="17" height="11" rx="2" />
+              <rect x="100.5" y="0.5" width="17" height="11" rx="2" />
+
+              <rect x="0.5" y="16.5" width="17" height="11" rx="2" />
+              <rect x="20.5" y="16.5" width="17" height="11" rx="2" class="tint" style="--h: 265; --c: 0.014" />
+              <rect x="40.5" y="16.5" width="17" height="11" rx="2" />
+              <rect x="60.5" y="16.5" width="17" height="11" rx="2" />
+              <rect x="80.5" y="16.5" width="17" height="11" rx="2" />
+              <rect x="100.5" y="16.5" width="17" height="11" rx="2" class="tint" style="--h: 265; --c: 0.014" />
+
+              <rect x="0.5" y="32.5" width="17" height="11" rx="2" class="tint" style="--h: 288; --c: 0.145" />
+              <rect x="20.5" y="32.5" width="17" height="11" rx="2" class="tint" style="--h: 288; --c: 0.145" />
+              <rect x="40.5" y="32.5" width="17" height="11" rx="2" class="tint" style="--h: 288; --c: 0.145" />
+              <rect x="60.5" y="32.5" width="17" height="11" rx="2" class="tint" style="--h: 158; --c: 0.115" />
+              <rect x="80.5" y="32.5" width="17" height="11" rx="2" class="tint" style="--h: 158; --c: 0.115" />
+              <rect x="100.5" y="32.5" width="17" height="11" rx="2" class="tint" style="--h: 158; --c: 0.115" />
+
+              <rect x="0.5" y="48.5" width="17" height="11" rx="2" />
+              <rect x="20.5" y="48.5" width="17" height="11" rx="2" />
+              <rect x="40.5" y="48.5" width="17" height="11" rx="2" class="tint" style="--h: 265; --c: 0.014" />
+              <rect x="60.5" y="48.5" width="17" height="11" rx="2" />
+              <rect x="80.5" y="48.5" width="17" height="11" rx="2" />
+              <rect x="100.5" y="48.5" width="17" height="11" rx="2" />
+
+              <rect x="0.5" y="64.5" width="17" height="11" rx="2" class="tint" style="--h: 265; --c: 0.014" />
+              <rect x="20.5" y="64.5" width="17" height="11" rx="2" class="tint" style="--h: 265; --c: 0.014" />
+              <rect x="40.5" y="64.5" width="17" height="11" rx="2" />
+              <rect x="60.5" y="64.5" width="17" height="11" rx="2" />
+              <rect x="80.5" y="64.5" width="17" height="11" rx="2" />
+              <rect x="100.5" y="64.5" width="17" height="11" rx="2" />
+            </g>
+          </svg>
+          <p class="drop-title">Drop your <code>.dbc</code> files here, or click to browse</p>
+          <p class="drop-sub">
+            Load as many as you like — each gets its own colour on the map. Parsed
+            locally in this tab; nothing is uploaded, stored or sent anywhere.
+          </p>
+        </div>
+        <p class="status" id="status" role="status"></p>
+      </section>
+
+      <section id="panelMap" class="panel" hidden>
+        <div class="map-head">
+          <div class="map-heading">
+            <h1 class="map-title" id="mapTitle">Allocation</h1>
+            <p class="map-sub" id="mapSub"></p>
+          </div>
+          <div class="map-controls">
+            <label class="theme-picker">
+              <span class="theme-label">Range</span>
+              <select id="gridRange"></select>
+            </label>
+            <label class="theme-picker">
+              <span class="theme-label">Theme</span>
+              <select id="gridTheme"></select>
+            </label>
+          </div>
+        </div>
+
+        <p class="map-empty" id="mapEmpty" hidden>
+          Nothing in this range. Use the range selector, or see the list below.
+        </p>
+
+        <div class="map-body">
+          <div class="grid-scroll">
+            <div id="grid" class="pgn-grid"></div>
+          </div>
+
+          <div class="side">
+            <h2 class="side-head">Files</h2>
+            <div id="fileLegend" class="file-legend"></div>
+          </div>
+        </div>
+
+        <details id="others" class="others" hidden>
+          <summary class="others-head">
+            <span id="othersHead">Outside the map</span>
+            <span class="others-count" id="othersCount"></span>
+          </summary>
+          <div id="othersList" class="others-list"></div>
+        </details>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <span>PGN allocation map and byte &times; bit layouts for CAN database files.</span>
+      <a href="https://github.com/carlbomsdata/dbc-matrix-viewer">Source</a>
+    </footer>
+
+    <dialog id="detail" class="detail" aria-labelledby="detailTitle">
+      <div class="detail-head">
+        <h2 class="detail-title mono" id="detailTitle"></h2>
+        <button type="button" class="ghost" id="detailClose">Close</button>
+      </div>
+      <div class="detail-body" id="detailBody"></div>
+    </dialog>
+
+    <input type="file" id="fileInput" accept=".dbc,.DBC,text/plain" multiple hidden />
+    <script src="app.js"></script>
+  </body>
+</html>
