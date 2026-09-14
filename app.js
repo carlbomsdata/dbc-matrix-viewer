@@ -651,6 +651,9 @@ function initApp(doc) {
     drop: doc.getElementById("drop"),
     status: doc.getElementById("status"),
     grid: doc.getElementById("grid"),
+    mapBody: doc.querySelector(".map-body"),
+    gridScroll: doc.querySelector(".grid-scroll"),
+    side: doc.querySelector(".side"),
     fileLegend: doc.getElementById("fileLegend"),
     others: doc.getElementById("others"),
     othersHead: doc.getElementById("othersHead"),
@@ -923,6 +926,7 @@ function initApp(doc) {
       range.unit +
       " for its layout.";
     els.mapEmpty.hidden = used.size > 0;
+    queueFit();
   }
 
   function gridHead(text, tick) {
@@ -977,6 +981,64 @@ function initApp(doc) {
     });
     return seen;
   }
+
+  /* Solve the cell size against the box the grid actually gets, rather than
+   * guessing how tall the surrounding chrome is. The grid's height is linear
+   * in the cell size, so one measured sample gives the exact answer. */
+  var MAX_CELL = { propb: 64, std11: 24 };
+  /* Below this a cell stops reading as a cell. If the map cannot fit at this
+   * size the content column scrolls, which beats an unreadable grid. */
+  var MIN_CELL = 11;
+
+  function solveCell(range) {
+    var probe = els.grid.querySelector(".pgn");
+    if (!probe) return null;
+    var sample = probe.getBoundingClientRect().width;
+    if (!sample) return null;
+
+    var gridBox = els.grid.getBoundingClientRect();
+    /* Everything in the grid that is not a row of cells: the header row and
+     * the gaps. Constant, so one sample gives the exact answer. */
+    var overheadH = gridBox.height - range.rows * sample;
+    var overheadW = gridBox.width - range.cols * sample;
+
+    var frame = els.gridScroll.offsetHeight - els.grid.offsetHeight;
+    var legend = els.side ? els.side.offsetHeight : 0;
+    var bodyGap = parseFloat(getComputedStyle(els.mapBody).rowGap) || 0;
+
+    var availH = els.mapBody.clientHeight - legend - bodyGap - frame;
+    var availW = els.mapBody.clientWidth - frame;
+
+    var byHeight = (availH - overheadH) / range.rows;
+    var byWidth = (availW - overheadW) / range.cols;
+    return Math.max(MIN_CELL, Math.floor(Math.min(byHeight, byWidth, MAX_CELL[range.id] || 64)));
+  }
+
+  /* Each pass measures the layout it just produced, so two or three are enough
+   * to settle even when the legend rewraps as the grid changes width. */
+  function fitGrid() {
+    if (!els.mapBody || els.panelMap.hidden) return;
+    var range = activeRange();
+    var previous = null;
+    for (var pass = 0; pass < 4; pass++) {
+      var cell = solveCell(range);
+      if (cell === null || cell === previous) break;
+      previous = cell;
+      els.grid.style.setProperty("--cell", cell + "px");
+    }
+  }
+
+  var fitQueued = false;
+  function queueFit() {
+    if (fitQueued) return;
+    fitQueued = true;
+    requestAnimationFrame(function () {
+      fitQueued = false;
+      fitGrid();
+    });
+  }
+
+  window.addEventListener("resize", queueFit);
 
   /* ---- file legend ---- */
 
