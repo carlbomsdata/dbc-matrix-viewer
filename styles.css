@@ -41,12 +41,13 @@
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 
-html { -webkit-text-size-adjust: 100%; }
+html { -webkit-text-size-adjust: 100%; height: 100%; }
 body {
   margin: 0;
-  min-height: 100dvh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
   background: var(--bg);
   color: var(--fg);
   font-size: 15px;
@@ -87,8 +88,7 @@ body {
 /* ---------- top bar ---------- */
 
 .topbar {
-  position: sticky;
-  top: 0;
+  flex: none;
   z-index: 10;
   display: flex;
   flex-wrap: wrap;
@@ -184,19 +184,20 @@ button.ghost:hover { background: var(--hover); border-color: transparent; color:
 
 main {
   flex: 1;
+  min-height: 0;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   width: 100%;
-  max-width: 1180px;
-  margin: 0 auto;
-  padding: 24px max(16px, min(4vw, 32px)) 48px;
+  padding: 20px max(16px, min(4vw, 32px)) 28px;
 }
 
 .footer {
+  flex: none;
   display: flex;
   gap: 14px;
   justify-content: center;
-  padding: 18px;
+  padding: 12px 18px;
   border-top: 1px solid var(--line);
   color: var(--faint);
   font-size: 0.76rem;
@@ -275,7 +276,14 @@ main {
 
 /* ---------- allocation map ---------- */
 
-#panelMap { display: flex; flex-direction: column; gap: 16px; }
+#panelMap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+.map-head,
+.map-empty { width: 100%; }
 
 .map-head {
   display: flex;
@@ -320,7 +328,13 @@ main {
 .map-sub { margin: 0; color: var(--muted); font-size: 0.83rem; }
 .map-sub .mono { font-size: 0.9em; }
 
-.map-body { display: flex; flex-direction: column; gap: 14px; }
+/* The matrix is the subject: centre it, and hang the legend under it. */
+.map-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
 
 /* The grid sits in its own frame so the empty slots read as empty slots
  * rather than as nothing at all. */
@@ -343,7 +357,10 @@ main {
 }
 
 .pgn-grid {
-  --cell: 2.4rem;
+  /* Fill the height that is actually left over, capped so a small map does
+   * not turn into wall tiles. --rows is set per range. */
+  --cell-max: 4rem;
+  --cell: min(var(--cell-max), calc((100dvh - 23rem) / var(--rows, 16)));
   display: grid;
   grid-template-columns: 2.9rem repeat(var(--cols, 16), minmax(0, var(--cell)));
   gap: 3px;
@@ -351,7 +368,7 @@ main {
 }
 /* 2048 identifiers need smaller cells than 256 parameter groups. */
 .pgn-grid[data-range="std11"] {
-  --cell: 0.95rem;
+  --cell-max: 1.5rem;
   grid-template-columns: 2.6rem repeat(var(--cols, 16), minmax(0, var(--cell)));
   gap: 1px;
 }
@@ -450,7 +467,13 @@ main {
 
 /* ---------- file legend ---------- */
 
-.file-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.file-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
 
 .file-chip {
   display: inline-flex;
@@ -510,7 +533,7 @@ main {
 
 /* ---------- outside Proprietary B ---------- */
 
-.others { margin-top: 4px; }
+.others { width: 100%; max-width: 72rem; margin-top: 2px; }
 .others-head {
   display: flex;
   align-items: baseline;

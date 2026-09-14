@@ -911,6 +911,7 @@ function initApp(doc) {
     }
 
     els.grid.style.setProperty("--cols", String(range.cols));
+    els.grid.style.setProperty("--rows", String(range.rows));
     els.grid.dataset.range = range.id;
     els.grid.textContent = "";
     els.grid.appendChild(frag);
