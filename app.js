@@ -1102,7 +1102,7 @@ function initApp(doc) {
     remove.type = "button";
     remove.className = "file-remove";
     remove.textContent = "\u00d7";
-    remove.title = "Remove " + file.name;
+    remove.title = "Remove " + file.name + " from the map";
     remove.setAttribute("aria-label", "Remove " + file.name);
     remove.addEventListener("click", function () {
       removeFile(file);

@@ -483,12 +483,14 @@ main {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  padding: 4px 4px 4px 8px;
+  padding: 4px 4px 4px 9px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--panel);
   font-size: 0.78rem;
+  transition: border-color 120ms ease;
 }
+.file-chip:hover { border-color: var(--line-strong); }
 .file-swatch {
   flex: none;
   width: 11px;
@@ -523,17 +525,28 @@ main {
 }
 
 .file-remove {
-  min-height: 20px;
-  width: 20px;
+  display: grid;
+  place-items: center;
+  min-height: 24px;
+  width: 24px;
   padding: 0;
-  border: 0;
-  border-radius: 5px;
+  border: 1px solid transparent;
+  border-radius: 6px;
   background: transparent;
-  color: var(--faint);
-  font-size: 0.95rem;
+  color: var(--muted);
+  font-size: 1.05rem;
   line-height: 1;
 }
-.file-remove:hover { background: var(--hover); border: 0; color: var(--fg); }
+.file-chip:hover .file-remove { border-color: var(--line-strong); color: var(--fg); }
+.file-remove:hover {
+  border-color: var(--fg);
+  background: var(--hover);
+  color: var(--fg);
+}
+/* Touch pointers need a bigger target than a mouse does. */
+@media (pointer: coarse) {
+  .file-remove { min-height: 30px; width: 30px; }
+}
 
 /* ---------- outside Proprietary B ---------- */
 
