@@ -1155,3 +1155,65 @@ dialog.detail[open] { animation: detail-in 140ms ease-out; }
     transparent 2px 5px
   );
 }
+
+/* ---------- the dialog follows the grid theme ----------
+ *
+ * By redefining the base tokens rather than restyling each part. Custom
+ * properties inherit, so the cards, chips, bit matrix, legend and DBC source
+ * panel all follow at once. Overriding a handful of selectors instead is what
+ * left pale text on white cards. */
+
+[data-grid-theme="blueprint"] dialog.detail {
+  --bg: #0a2d4a;
+  --fg: #eaf4ff;
+  --panel: #0d3557;
+  --panel-2: #114066;
+  --line: rgba(203, 227, 247, 0.2);
+  --line-strong: rgba(203, 227, 247, 0.38);
+  --muted: rgba(234, 244, 255, 0.74);
+  --faint: rgba(234, 244, 255, 0.52);
+  --hover: rgba(234, 244, 255, 0.11);
+  --accent: #eaf4ff;
+  --accent-fg: #0a2d4a;
+  --focus: #9ecbff;
+}
+
+[data-grid-theme="phosphor"] dialog.detail {
+  --bg: #05110b;
+  --fg: #c8ffd9;
+  --panel: #0a1b12;
+  --panel-2: #0f2419;
+  --line: rgba(92, 231, 150, 0.18);
+  --line-strong: rgba(92, 231, 150, 0.34);
+  --muted: rgba(200, 255, 217, 0.72);
+  --faint: rgba(200, 255, 217, 0.48);
+  --hover: rgba(92, 231, 150, 0.12);
+  --accent: #5ce796;
+  --accent-fg: #05110b;
+  --focus: #5ce796;
+}
+
+[data-grid-theme="blueprint"] dialog.detail,
+[data-grid-theme="phosphor"] dialog.detail {
+  border-color: var(--line-strong);
+  background: var(--bg);
+  color: var(--fg);
+}
+[data-grid-theme="blueprint"] dialog.detail::backdrop,
+[data-grid-theme="phosphor"] dialog.detail::backdrop {
+  background: rgba(0, 0, 0, 0.6);
+}
+
+/* The cards sit on the dialog, so they must not paint their own ground. */
+[data-grid-theme="blueprint"] .detail-body .card,
+[data-grid-theme="phosphor"] .detail-body .card {
+  background: transparent;
+}
+
+/* Signal fills are pale by design and carry dark text, so they keep their own
+ * colours on a dark field. The empty cells follow the theme. */
+[data-grid-theme="blueprint"] .detail-body .cell.empty,
+[data-grid-theme="phosphor"] .detail-body .cell.empty {
+  background: color-mix(in srgb, var(--fg) 7%, transparent);
+  border-color: transparent;
+}
