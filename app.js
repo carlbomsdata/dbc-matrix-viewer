@@ -1101,17 +1101,23 @@ function initApp(doc) {
   /* Measure against the viewport and the chrome around the grid. Deriving the
    * space from the grid's own flex parent is circular: the parent is sized by
    * the grid, so it reports back whatever the last guess produced. */
+  /* How much taller than wide a cell may get. A narrow, tall window can only
+   * fit so many columns; forcing squares there leaves most of the page empty. */
+  var MAX_RATIO = 1.25;
+
   function solveCell(range) {
     var probe = els.grid.querySelector(".pgn");
     if (!probe) return null;
-    var sample = probe.getBoundingClientRect().width;
-    if (!sample) return null;
+    var box = probe.getBoundingClientRect();
+    var sampleW = box.width;
+    var sampleH = box.height;
+    if (!sampleW || !sampleH) return null;
 
     var gridBox = els.grid.getBoundingClientRect();
     /* Everything in the grid that is not a row of cells: the header row and
      * the gaps. Constant, so one sample gives the exact answer. */
-    var overheadH = gridBox.height - range.rows * sample;
-    var overheadW = gridBox.width - range.cols * sample;
+    var overheadH = gridBox.height - range.rows * sampleH;
+    var overheadW = gridBox.width - range.cols * sampleW;
 
     var mainStyle = getComputedStyle(els.main);
     var panelGap = px(getComputedStyle(els.panelMap).rowGap);
@@ -1148,9 +1154,20 @@ function initApp(doc) {
       px(frameStyle.borderLeftWidth) -
       px(frameStyle.borderRightWidth);
 
+    var max = MAX_CELL[range.id] || 64;
     var byHeight = (availH - overheadH) / range.rows;
     var byWidth = (availW - overheadW) / range.cols;
-    return Math.max(MIN_CELL, Math.floor(Math.min(byHeight, byWidth, MAX_CELL[range.id] || 64)));
+
+    /* Square by default. Only a narrow window, where the columns are the
+     * binding constraint, stretches the rows to use the spare height. */
+    var w = Math.min(byWidth, max);
+    var h = Math.min(byHeight, w * MAX_RATIO);
+    if (h < w) w = h;
+
+    return {
+      w: Math.max(MIN_CELL, Math.floor(w)),
+      h: Math.max(MIN_CELL, Math.floor(h)),
+    };
   }
 
   /* Each pass measures the layout it just produced, so two or three are enough
@@ -1161,17 +1178,26 @@ function initApp(doc) {
      * cell and nobody can see the result. */
     if (els.detail.open) return;
     var range = activeRange();
-    var previous = null;
+    var previous = "";
     for (var pass = 0; pass < 4; pass++) {
       var cell = solveCell(range);
-      if (cell === null || cell === previous) break;
-      previous = cell;
-      els.grid.style.setProperty("--cell", cell + "px");
-      els.grid.style.setProperty(
-        "--label",
-        Math.max(5, Math.min(11, Math.round(cell * 0.58))) + "px"
-      );
+      if (cell === null) break;
+      var key = cell.w + "x" + cell.h;
+      if (key === previous) break;
+      previous = key;
+      els.grid.style.setProperty("--cell", cell.w + "px");
+      /* A ratio, not a height: if the container squeezes the columns the rows
+       * squeeze with them instead of turning into bars. */
+      els.grid.style.setProperty("--ratio", (cell.h / cell.w).toFixed(3));
+      /* Row and column labels are sized off the axis that constrains them, so
+       * a roomy desktop grid gets readable numbers rather than 11px ones. */
+      els.grid.style.setProperty("--label-x", labelSize(cell.w) + "px");
+      els.grid.style.setProperty("--label-y", labelSize(cell.h) + "px");
     }
+  }
+
+  function labelSize(extent) {
+    return Math.max(5, Math.min(16, Math.round(extent * 0.46)));
   }
 
   var fitQueued = false;

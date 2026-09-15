@@ -280,6 +280,7 @@ main {
   /* Grow into spare room, but never shrink below the content: a shrunk column
    * overflows its box and draws on top of whatever follows it. */
   flex: 1 0 auto;
+  justify-content: center;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -397,7 +398,7 @@ main {
   grid-template-columns: 3.6rem repeat(var(--cols, 16), minmax(0, var(--cell)));
   gap: 1px;
 }
-.pgn-grid[data-range="pdu2"] .pgn { border-radius: 3px; }
+
 .pgn-grid[data-range="pdu2"] .pgn-row-label { padding-right: 6px; }
 .pgn-grid[data-range="pdu2"] .pgn.used:hover { transform: scale(1.5); }
 
@@ -405,7 +406,7 @@ main {
   grid-template-columns: 2.6rem repeat(var(--cols, 16), minmax(0, var(--cell)));
   gap: 1px;
 }
-.pgn-grid[data-range="std11"] .pgn { border-radius: 3px; }
+
 .pgn-grid[data-range="std11"] .pgn-row-label { padding-right: 6px; }
 .pgn-grid[data-range="std11"] .pgn.used:hover { transform: scale(1.5); }
 
@@ -418,11 +419,11 @@ main {
   font-family: var(--mono);
   /* Scaled with the cell: a fixed label height is a floor under the whole
      grid, and the map stops fitting long before the cells get small. */
-  font-size: var(--label, 0.7rem);
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
 .pgn-col-head {
+  font-size: var(--label-x, 0.7rem);
   align-items: flex-end;
   padding-bottom: 6px;
   margin-bottom: 3px;
@@ -432,6 +433,7 @@ main {
 .pgn-col-head.tick,
 .pgn-row-label.tick { color: var(--fg); font-weight: 600; }
 .pgn-row-label {
+  font-size: var(--label-y, 0.7rem);
   justify-content: flex-end;
   padding-right: 9px;
   margin-right: 3px;
@@ -439,7 +441,7 @@ main {
 }
 
 .pgn {
-  aspect-ratio: 1;
+  aspect-ratio: 1 / var(--ratio, 1);
   /* A claimed cell is a <button>; without this it inherits the 32px minimum
    * from the button rule and dwarfs the free <div> cells beside it. */
   min-height: 0;
@@ -1044,15 +1046,13 @@ dialog.detail[open] { animation: detail-in 140ms ease-out; }
   .card-head { padding: 11px 12px; }
   /* Always fit all sixteen columns: the point of the map is seeing the whole
    * range at once, so the cells shrink rather than the grid scrolling. */
-  .grid-scroll { width: auto; padding: 10px 11px 12px; }
-  .pgn-grid { grid-template-columns: 1.6rem repeat(var(--cols, 16), minmax(0, 1fr)); gap: 2px; }
-  /* Fit, always. A scrollbar on the map is the bug being fixed. */
+  .grid-scroll { padding: 10px 11px 12px; }
+  .pgn-grid { grid-template-columns: 1.9rem repeat(var(--cols, 16), minmax(0, var(--cell))); }
   .pgn-grid[data-range="std11"],
   .pgn-grid[data-range="pdu2"] {
-    grid-template-columns: 2.2rem repeat(var(--cols, 16), minmax(0, 1fr));
-    gap: 1px;
+    grid-template-columns: 2.2rem repeat(var(--cols, 16), minmax(0, var(--cell)));
   }
-  .pgn { border-radius: 4px; }
+
   .pgn.used:hover { transform: none; }
   .pgn-row-label { padding-right: 5px; margin-right: 2px; }
   .pgn-col-head { padding-bottom: 4px; margin-bottom: 2px; }
@@ -1067,7 +1067,9 @@ dialog.detail[open] { animation: detail-in 140ms ease-out; }
     width: 100%;
     min-width: 0;
   }
-  #panelMap { justify-content: flex-start; }
+  .file-legend { flex-direction: column; align-items: stretch; width: 100%; }
+  .file-chip { width: 100%; }
+  .file-count { margin-left: auto; }
   .map-head { flex-wrap: wrap; }
   .map-controls { gap: 8px 10px; flex-wrap: wrap; }
   .map-title, .map-sub { white-space: normal; }
@@ -1153,71 +1155,3 @@ dialog.detail[open] { animation: detail-in 140ms ease-out; }
     transparent 2px 5px
   );
 }
-
-/* ---------- fixed themes reach the dialog ---------- */
-
-[data-grid-theme="blueprint"] dialog.detail,
-[data-grid-theme="phosphor"] dialog.detail {
-  border-color: var(--grid-rule);
-  background: var(--grid-bg);
-  color: var(--grid-ink);
-}
-[data-grid-theme="blueprint"] .detail-head,
-[data-grid-theme="phosphor"] .detail-head {
-  border-bottom-color: var(--grid-rule);
-  background: color-mix(in srgb, var(--grid-ink) 7%, transparent);
-}
-[data-grid-theme="blueprint"] .detail-body .card + .card,
-[data-grid-theme="phosphor"] .detail-body .card + .card {
-  border-top-color: var(--grid-rule);
-}
-[data-grid-theme="blueprint"] .detail-body .chip,
-[data-grid-theme="phosphor"] .detail-body .chip {
-  border-color: var(--grid-rule);
-  color: color-mix(in srgb, var(--grid-ink) 72%, transparent);
-}
-[data-grid-theme="blueprint"] .detail-body .chip.strong,
-[data-grid-theme="phosphor"] .detail-body .chip.strong {
-  border-color: var(--grid-ink);
-  color: var(--grid-ink);
-}
-[data-grid-theme="blueprint"] .detail-body .bit-head,
-[data-grid-theme="blueprint"] .detail-body .gutter,
-[data-grid-theme="phosphor"] .detail-body .bit-head,
-[data-grid-theme="phosphor"] .detail-body .gutter {
-  color: color-mix(in srgb, var(--grid-ink) 55%, transparent);
-  border-color: var(--grid-rule);
-}
-[data-grid-theme="blueprint"] .detail-body .cell.empty,
-[data-grid-theme="phosphor"] .detail-body .cell.empty {
-  background: transparent;
-  border-color: var(--grid-rule);
-  color: color-mix(in srgb, var(--grid-ink) 40%, transparent);
-}
-[data-grid-theme="blueprint"] .detail-body .legend-name,
-[data-grid-theme="phosphor"] .detail-body .legend-name,
-[data-grid-theme="blueprint"] .detail-title,
-[data-grid-theme="phosphor"] .detail-title {
-  color: var(--grid-ink);
-}
-[data-grid-theme="blueprint"] .detail-body .legend-facts,
-[data-grid-theme="blueprint"] .detail-body .legend-comment,
-[data-grid-theme="phosphor"] .detail-body .legend-facts,
-[data-grid-theme="phosphor"] .detail-body .legend-comment {
-  color: color-mix(in srgb, var(--grid-ink) 60%, transparent);
-}
-[data-grid-theme="blueprint"] .source,
-[data-grid-theme="phosphor"] .source {
-  border-top-color: var(--grid-rule);
-  background: color-mix(in srgb, var(--grid-ink) 6%, transparent);
-}
-[data-grid-theme="blueprint"] .source-head,
-[data-grid-theme="phosphor"] .source-head { border-bottom-color: var(--grid-rule); }
-[data-grid-theme="blueprint"] .source-body code,
-[data-grid-theme="phosphor"] .source-body code { color: var(--grid-ink); }
-[data-grid-theme="blueprint"] .legend-main:hover,
-[data-grid-theme="phosphor"] .legend-main:hover {
-  background: color-mix(in srgb, var(--grid-ink) 9%, transparent);
-}
-[data-grid-theme="blueprint"] dialog.detail::backdrop,
-[data-grid-theme="phosphor"] dialog.detail::backdrop { background: rgba(0, 0, 0, 0.6); }
