@@ -19,11 +19,14 @@
  * ------------------------------------------------------------------ */
 
 var BITS_PER_BYTE = 8;
+/* A CAN FD frame carries 64 bytes. Anything longer is a corrupt line, and
+ * building the array anyway hangs the tab. */
+var MAX_SIGNAL_BITS = 512;
 
 function signalBitOrder(startBit, length, littleEndian) {
   var bits = [];
   if (!Number.isInteger(startBit) || !Number.isInteger(length)) return bits;
-  if (startBit < 0 || length <= 0) return bits;
+  if (startBit < 0 || length <= 0 || length > MAX_SIGNAL_BITS) return bits;
 
   if (littleEndian) {
     for (var i = 0; i < length; i++) bits.push(startBit + i);
@@ -141,6 +144,12 @@ function stringStillOpen(text) {
   return inString;
 }
 
+/* DBC escapes a quote inside a string as \". The verbatim line keeps the
+ * backslash for the source panel; the text shown in the interface should not. */
+function unescapeDbc(text) {
+  return String(text).replace(/\\(.)/g, "$1");
+}
+
 function signalKey(messageRawId, signalName) {
   return messageRawId + "\u0000" + signalName;
 }
@@ -157,6 +166,9 @@ function looksLikeDbc(lines) {
 function parseDbc(text) {
   var lines = String(text).replace(/^\ufeff/, "").replace(/\r\n?/g, "\n").split("\n");
   var messages = [];
+  /* Duplicate message ids are a broken file but a legal parse, so keep every
+   * match and apply comments and value tables to all of them rather than
+   * binding CM_ BO_ to the first and CM_ SG_ to the last. */
   var messagesById = new Map();
   var signalsByKey = new Map();
   var nodes = [];
@@ -190,11 +202,13 @@ function parseDbc(text) {
       continue;
     }
 
-    if (line.indexOf("SG_ ") === 0 && current) {
+    if (/^SG_\s/.test(line) && current) {
       var sg = parseSignalLine(line, raw, current);
       if (sg) {
         current.signals.push(sg);
-        signalsByKey.set(signalKey(current.rawId, sg.name), sg);
+        var key = signalKey(current.rawId, sg.name);
+        if (!signalsByKey.has(key)) signalsByKey.set(key, []);
+        signalsByKey.get(key).push(sg);
       }
       continue;
     }
@@ -213,7 +227,8 @@ function parseDbc(text) {
       };
       current.can = decodeCanId(current.rawId);
       messages.push(current);
-      if (!messagesById.has(current.rawId)) messagesById.set(current.rawId, current);
+      if (!messagesById.has(current.rawId)) messagesById.set(current.rawId, []);
+      messagesById.get(current.rawId).push(current);
       continue;
     }
 
@@ -237,15 +252,17 @@ function parseDbc(text) {
 
     var cmBo = RE_CM_BO.exec(flat);
     if (cmBo) {
-      var msgForComment = messagesById.get(Number(cmBo[1]) >>> 0);
-      if (msgForComment) msgForComment.comment = { text: cmBo[2], line: stmt };
+      (messagesById.get(Number(cmBo[1]) >>> 0) || []).forEach(function (msg) {
+        msg.comment = { text: unescapeDbc(cmBo[2]), line: stmt };
+      });
       return;
     }
 
     var cmSg = RE_CM_SG.exec(flat);
     if (cmSg) {
-      var sigForComment = signalsByKey.get(signalKey(Number(cmSg[1]) >>> 0, cmSg[2]));
-      if (sigForComment) sigForComment.comment = { text: cmSg[3], line: stmt };
+      (signalsByKey.get(signalKey(Number(cmSg[1]) >>> 0, cmSg[2])) || []).forEach(function (sig) {
+        sig.comment = { text: unescapeDbc(cmSg[3]), line: stmt };
+      });
       return;
     }
 
@@ -253,8 +270,8 @@ function parseDbc(text) {
 
     var val = RE_VAL.exec(flat);
     if (val) {
-      var sigForValues = signalsByKey.get(signalKey(Number(val[1]) >>> 0, val[2]));
-      if (!sigForValues) return;
+      var targets = signalsByKey.get(signalKey(Number(val[1]) >>> 0, val[2]));
+      if (!targets) return;
 
       var values = parseValuePairs(val[3]);
       if (!values.length) {
@@ -262,8 +279,10 @@ function parseDbc(text) {
         var named = valueTables.get(val[3].trim());
         if (named) values = named.slice();
       }
-      sigForValues.valueLine = stmt;
-      if (values.length) sigForValues.values = values;
+      targets.forEach(function (sig) {
+        sig.valueLine = stmt;
+        if (values.length) sig.values = values.slice();
+      });
     }
   }
 
@@ -344,7 +363,7 @@ function parseValuePairs(text) {
   var re = /(-?\d+)\s+"((?:[^"\\]|\\.)*)"/g;
   var m;
   while ((m = re.exec(text)) !== null) {
-    pairs.push({ value: Number(m[1]), label: m[2] });
+    pairs.push({ value: Number(m[1]), label: unescapeDbc(m[2]) });
   }
   pairs.sort(function (a, b) {
     return a.value - b.value;
@@ -442,7 +461,7 @@ var PGN_END = 0xffff;
 var GRID_RANGES = [
   {
     id: "propb",
-    valueOf: function (slot) {
+    identifierOf: function (slot) {
       return PGN_BASE + slot;
     },
     maxWidth: 1150,
@@ -475,7 +494,7 @@ var GRID_RANGES = [
   },
   {
     id: "std11",
-    valueOf: function (slot) {
+    identifierOf: function (slot) {
       return slot;
     },
     maxWidth: 1680,
@@ -507,7 +526,7 @@ var GRID_RANGES = [
   },
   {
     id: "pdu2",
-    valueOf: function (slot) {
+    identifierOf: function (slot) {
       return 0xf000 + slot;
     },
     maxWidth: 2400,
@@ -542,7 +561,7 @@ var GRID_RANGES = [
   },
   {
     id: "pdu1",
-    valueOf: function (slot) {
+    identifierOf: function (slot) {
       return slot << 8;
     },
     maxWidth: 1160,
@@ -559,6 +578,9 @@ var GRID_RANGES = [
      * destination address, so it is not part of the group number. */
     cellOf: function (msg) {
       if (!msg.can.extended || msg.can.pduFormat >= 240) return -1;
+      /* PGN carries the data page bits above the PDU format. Mapping by PDU
+       * format alone would drop 0x10A00 onto 0x0A00's cell and mislabel it. */
+      if (msg.can.pgn > 0xffff) return -1;
       return msg.can.pduFormat;
     },
     rowLabel: function (row) {
@@ -776,6 +798,7 @@ function initApp(doc) {
     gridTheme: DEFAULT_THEME,
     range: GRID_RANGES[0].id,
     rangePinned: false,
+    othersPinned: false,
   };
 
   /* ---- status ---- */
@@ -855,6 +878,8 @@ function initApp(doc) {
     state.files = [];
     state.selected = null;
     state.nextIndex = 0;
+    state.rangePinned = false;
+    state.othersPinned = false;
     els.filter.value = "";
     setStatus("", "");
     render();
@@ -926,12 +951,19 @@ function initApp(doc) {
     if (els.gridRange) els.gridRange.value = best;
   }
 
+  function plural(n, word) {
+    return n + " " + word + (n === 1 ? "" : "s");
+  }
+
   function totals() {
     var messages = 0;
     var signals = 0;
     state.files.forEach(function (file) {
-      messages += file.db.messages.length;
-      signals += file.db.signalCount;
+      file.db.messages.forEach(function (msg) {
+        if (!isRealMessage(msg)) return;
+        messages++;
+        signals += msg.signals.length;
+      });
     });
     return { messages: messages, signals: signals };
   }
@@ -976,12 +1008,11 @@ function initApp(doc) {
 
     var counts = totals();
     els.fileCounts.textContent =
-      state.files.length +
-      (state.files.length === 1 ? " file \u00b7 " : " files \u00b7 ") +
-      counts.messages +
-      " messages \u00b7 " +
-      counts.signals +
-      " signals";
+      plural(state.files.length, "file") +
+      " \u00b7 " +
+      plural(counts.messages, "message") +
+      " \u00b7 " +
+      plural(counts.signals, "signal");
 
     renderGrid();
     renderFileLegend();
@@ -1022,6 +1053,10 @@ function initApp(doc) {
     crosshair.row = null;
     crosshair.col = null;
     crosshair.geom = null;
+    if (crosshair.rowBar) {
+      crosshair.rowBar.hidden = true;
+      crosshair.colBar.hidden = true;
+    }
     els.grid.style.setProperty("--rows", String(range.rows));
     els.grid.dataset.range = range.id;
     els.grid.textContent = "";
@@ -1143,7 +1178,7 @@ function initApp(doc) {
     var cell = doc.createElement("button");
     cell.type = "button";
     cell.className = "pgn used";
-    cell.dataset.pgn = String(range.valueOf ? range.valueOf(slot) : slot);
+    cell.dataset.pgn = String(range.identifierOf(slot));
     cell.dataset.key = "pgn:" + range.id + ":" + slot;
     cell.dataset.row = String(row);
     cell.dataset.col = String(col);
@@ -1235,7 +1270,7 @@ function initApp(doc) {
       els.mapHead.offsetHeight +
       panelGap +
       (els.mapEmpty.hidden ? 0 : els.mapEmpty.offsetHeight + panelGap) +
-      (els.others.hidden ? 0 : els.others.offsetHeight + panelGap) +
+      (els.others.hidden || els.others.open ? 0 : els.others.offsetHeight + panelGap) +
       (els.side ? els.side.offsetHeight + bodyGap : 0) +
       frame;
 
@@ -1400,7 +1435,7 @@ function initApp(doc) {
       els.othersList.textContent = "";
       return;
     }
-    if (query) els.others.open = true;
+    if (!state.othersPinned) els.others.open = Boolean(query);
 
     els.othersHead.textContent = "Not on the map";
     els.othersCount.textContent =
@@ -1534,6 +1569,9 @@ function initApp(doc) {
     state.selected = null;
     markSelection(null);
     renderDetail();
+    /* fitGrid declines to run while the dialog is open, so a resize that
+     * happened behind it has not been applied yet. */
+    queueFit();
   }
 
   /* ---- message card (matrix + signal list + source) ---- */
@@ -1720,10 +1758,12 @@ function initApp(doc) {
     applyPaint(run, sig.index);
 
     /* Name it once per message — a 17-byte signal repeating its own name down
-     * every row is noise, and the colour already carries the identity. */
+     * every row is noise, and the colour already carries the identity. Runs
+     * narrower than three cells hide their label in CSS, so they must not be
+     * the one that claims it. */
     var label = doc.createElement("span");
     label.className = "cell-label";
-    if (!labelled[sig.id]) {
+    if (!labelled[sig.id] && span >= 3) {
       label.textContent = sig.name;
       labelled[sig.id] = true;
     }
@@ -2115,6 +2155,11 @@ function initApp(doc) {
   });
   els.grid.addEventListener("mouseleave", function () {
     moveCrosshair(null);
+  });
+
+  els.others.addEventListener("toggle", function () {
+    /* Once it has been opened or closed by hand, stop driving it. */
+    if (!els.filter.value.trim()) state.othersPinned = els.others.open;
   });
 
   els.filter.addEventListener("input", function () {

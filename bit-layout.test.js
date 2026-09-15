@@ -209,3 +209,35 @@ test("a PDU2 identifier maps to the grid cell its PGN names", () => {
   assert.strictEqual((can.pgn >> 4) & 0xf, 0x6); // row FF6x
   assert.strictEqual(can.pgn & 0xf, 0x0); // column 0
 });
+
+/* ---- regressions found in review ---- */
+
+const { GRID_RANGES, rangeById, rangeCellCount } = require("./app.js");
+
+test("PDU1 does not fold a data page onto page zero", () => {
+  const pdu1 = rangeById("pdu1");
+  const page0 = { can: decodeCanId(0x18 << 24 | 0x0a << 16) }; // PF 0x0A, DP 0
+  const page1 = { can: decodeCanId((0x18 << 24) | (1 << 24) | (0x0a << 16)) };
+
+  assert.strictEqual(page0.can.pgn, 0x0a00);
+  assert.strictEqual(pdu1.cellOf(page0), 0x0a);
+  assert.ok(page1.can.pgn > 0xffff, "the data page bit lands above the PGN low word");
+  assert.strictEqual(pdu1.cellOf(page1), -1, "it used to share 0x0A00's cell and be mislabelled");
+});
+
+test("every range maps a slot back to the identifier it names", () => {
+  for (const range of GRID_RANGES) {
+    assert.strictEqual(typeof range.identifierOf, "function", range.id);
+    assert.strictEqual(range.cols * range.rows, rangeCellCount(range), range.id);
+    // valueOf would have shadowed Object.prototype.valueOf
+    assert.strictEqual(
+      Object.prototype.hasOwnProperty.call(range, "valueOf"),
+      false,
+      range.id + " must not shadow valueOf"
+    );
+  }
+  assert.strictEqual(rangeById("propb").identifierOf(0x60), 0xff60);
+  assert.strictEqual(rangeById("std11").identifierOf(0x123), 0x123);
+  assert.strictEqual(rangeById("pdu2").identifierOf(0), 0xf000);
+  assert.strictEqual(rangeById("pdu1").identifierOf(0xea), 0xea00);
+});

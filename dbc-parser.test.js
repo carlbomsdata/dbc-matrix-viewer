@@ -501,3 +501,65 @@ test("a VAL_ or CM_ naming a signal that does not exist is ignored quietly", () 
   assert.strictEqual(firstSignal(db).comment, null);
   assert.strictEqual(firstSignal(db).values, null);
 });
+
+/* ---- regressions found in review ---- */
+
+test("a tab after SG_ does not drop the signal or the ones after it", () => {
+  const db = parseDbc(
+    lines(
+      "BO_ 291 M: 8 ECU",
+      '\tSG_\tTabbed : 7|8@0+ (1,0) [0|255] "" ECU',
+      ' SG_ Normal : 15|8@0+ (1,0) [0|255] "" ECU',
+      ""
+    )
+  );
+  assert.strictEqual(db.signalCount, 2, "the tabbed line used to take the rest of the message with it");
+  assert.deepStrictEqual(db.messages[0].signals.map((s) => s.name), ["Tabbed", "Normal"]);
+});
+
+test("an absurd signal length is refused rather than allocated", () => {
+  const db = parseDbc(
+    lines("BO_ 291 M: 8 ECU", ' SG_ Huge : 0|999999999@1+ (1,0) [0|0] "" ECU', "")
+  );
+  assert.deepStrictEqual(firstSignal(db).cells, [], "a nine-digit length would hang the tab");
+  // A real CAN FD frame still works.
+  const fd = parseDbc(lines("BO_ 292 F: 64 ECU", ' SG_ Long : 0|512@1+ (1,0) [0|0] "" ECU', ""));
+  assert.strictEqual(firstSignal(fd).cells.length, 512);
+});
+
+test("escaped quotes are decoded for display but kept in the source line", () => {
+  const db = parseDbc(
+    lines(
+      "BO_ 291 M: 8 ECU",
+      ' SG_ S : 7|8@0+ (1,0) [0|255] "" ECU',
+      'CM_ SG_ 291 S "he said \\"go\\" loudly";',
+      'VAL_ 291 S 0 "say \\"hi\\"" ;',
+      ""
+    )
+  );
+  const sig = firstSignal(db);
+  assert.strictEqual(sig.comment.text, 'he said "go" loudly');
+  assert.strictEqual(sig.values[0].label, 'say "hi"');
+  assert.match(sig.comment.line, /\\"go\\"/, "the verbatim line keeps its backslashes");
+});
+
+test("duplicate message ids take comments and values consistently", () => {
+  const db = parseDbc(
+    lines(
+      "BO_ 291 First: 8 A",
+      ' SG_ X : 7|8@0+ (1,0) [0|0] "" A',
+      "BO_ 291 Second: 8 B",
+      ' SG_ X : 7|8@0+ (1,0) [0|0] "" B',
+      'CM_ BO_ 291 "a message comment";',
+      'CM_ SG_ 291 X "a signal comment";',
+      'VAL_ 291 X 1 "on" ;',
+      ""
+    )
+  );
+  assert.strictEqual(db.messages.length, 2);
+  for (const msg of db.messages) {
+    assert.strictEqual(msg.comment.text, "a message comment", msg.name);
+    assert.strictEqual(msg.signals[0].comment.text, "a signal comment", msg.name);
+    assert.deepStrictEqual(msg.signals[0].values, [{ value: 1, label: "on" }], msg.name);
+  }
+});

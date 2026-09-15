@@ -1038,8 +1038,9 @@ dialog.detail[open] { animation: detail-in 140ms ease-out; }
 .value-list dd { margin: 0; overflow-wrap: anywhere; }
 
 /* Selection: the chosen signal keeps full colour, the rest recede. */
-.card.has-selection .sigrow:not(:has(.selected)),
-.card.has-selection .sigextra:not([data-sig-selected]) { opacity: 0.55; }
+/* Both rows carry data-sig, so both take .selected from toggleSignal. */
+.card.has-selection .sigrow:not(.selected),
+.card.has-selection .sigextra:not(.selected) { opacity: 0.55; }
 
 /* ---------- source panel ---------- */
 
