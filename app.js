@@ -1503,6 +1503,9 @@ function initApp(doc) {
     if (!els.detail.open) {
       els.detail.showModal();
       els.detailBody.scrollTop = 0;
+      /* Otherwise the dialog opens with a focus ring sitting on Close, which
+       * reads as though the button is about to be pressed. */
+      els.detailBody.focus({ preventScroll: true });
     }
   }
 
@@ -2092,7 +2095,12 @@ function initApp(doc) {
     if (button) button.click();
   });
 
+  /* A click on the backdrop targets the dialog itself; a click on anything
+   * inside targets that child. Testing pointer coordinates instead treats a
+   * keyboard-activated click, which reports 0,0, as a click on the backdrop
+   * and closes the dialog. */
   els.detail.addEventListener("click", function (event) {
+    if (event.target !== els.detail) return;
     var box = els.detail.getBoundingClientRect();
     var outside =
       event.clientX < box.left ||
