@@ -1019,15 +1019,84 @@ function initApp(doc) {
      * result of the cell size, which would feed straight back into it. */
     els.panelMap.style.setProperty("--map-w", "min(100%, " + range.maxWidth + "px)");
     els.grid.style.setProperty("--cols", String(range.cols));
+    crosshair.row = null;
+    crosshair.col = null;
     els.grid.style.setProperty("--rows", String(range.rows));
     els.grid.dataset.range = range.id;
     els.grid.textContent = "";
     els.grid.appendChild(frag);
+    if (crosshair.rowBar) {
+      els.grid.appendChild(crosshair.rowBar);
+      els.grid.appendChild(crosshair.colBar);
+    }
 
     els.mapTitle.textContent = range.label + " allocation";
     els.mapSub.textContent = range.note + " \u00b7 " + range.blurb;
     els.mapEmpty.hidden = used.size > 0;
     queueFit();
+  }
+
+  /* Excel-style crosshair. Two bars placed on the grid rather than a class on
+   * every cell of the row and column, so hovering costs the same whether the
+   * range holds 256 cells or 4096. */
+  var crosshair = { row: null, col: null, rowBar: null, colBar: null, label: null, head: null };
+
+  function buildCrosshair() {
+    crosshair.rowBar = doc.createElement("div");
+    crosshair.rowBar.className = "pgn-cross pgn-cross-row";
+    crosshair.colBar = doc.createElement("div");
+    crosshair.colBar.className = "pgn-cross pgn-cross-col";
+    crosshair.rowBar.hidden = true;
+    crosshair.colBar.hidden = true;
+    els.grid.appendChild(crosshair.rowBar);
+    els.grid.appendChild(crosshair.colBar);
+  }
+
+  function moveCrosshair(cell) {
+    var row = cell ? Number(cell.dataset.row) : null;
+    var col = cell ? Number(cell.dataset.col) : null;
+    if (crosshair.row === row && crosshair.col === col) return;
+    crosshair.row = row;
+    crosshair.col = col;
+
+    if (crosshair.label) crosshair.label.classList.remove("hl");
+    if (crosshair.head) crosshair.head.classList.remove("hl");
+    crosshair.label = null;
+    crosshair.head = null;
+
+    if (!cell) {
+      crosshair.rowBar.hidden = true;
+      crosshair.colBar.hidden = true;
+      return;
+    }
+
+    /* Measured from the cell rather than worked out from grid line numbers,
+     * which have to account for the header row, the label column and the gaps
+     * and get it wrong the moment any of those change. */
+    var origin = els.grid.getBoundingClientRect();
+    var box = cell.getBoundingClientRect();
+    var first = els.grid.querySelector(".pgn");
+    if (!first) return;
+    var firstBox = first.getBoundingClientRect();
+    var left = firstBox.left - origin.left;
+    var top = firstBox.top - origin.top;
+
+    crosshair.rowBar.hidden = false;
+    crosshair.rowBar.style.top = box.top - origin.top + "px";
+    crosshair.rowBar.style.height = box.height + "px";
+    crosshair.rowBar.style.left = left + "px";
+    crosshair.rowBar.style.width = origin.width - left + "px";
+
+    crosshair.colBar.hidden = false;
+    crosshair.colBar.style.left = box.left - origin.left + "px";
+    crosshair.colBar.style.width = box.width + "px";
+    crosshair.colBar.style.top = top + "px";
+    crosshair.colBar.style.height = origin.height - top + "px";
+
+    crosshair.label = els.grid.querySelectorAll(".pgn-row-label")[row];
+    crosshair.head = els.grid.querySelectorAll(".pgn-col-head")[col + 1];
+    if (crosshair.label) crosshair.label.classList.add("hl");
+    if (crosshair.head) crosshair.head.classList.add("hl");
   }
 
   function gridHead(text, tick) {
@@ -1040,9 +1109,14 @@ function initApp(doc) {
   function pgnCell(range, slot, refs, query) {
     var label = range.cellName(slot);
 
+    var row = Math.floor(slot / range.cols);
+    var col = slot % range.cols;
+
     if (!refs || !refs.length) {
       var free = doc.createElement("div");
       free.className = "pgn free";
+      free.dataset.row = String(row);
+      free.dataset.col = String(col);
       free.title = label + " \u2014 free";
       return free;
     }
@@ -1052,6 +1126,8 @@ function initApp(doc) {
     cell.className = "pgn used";
     cell.dataset.pgn = String(range.valueOf ? range.valueOf(slot) : slot);
     cell.dataset.key = "pgn:" + range.id + ":" + slot;
+    cell.dataset.row = String(row);
+    cell.dataset.col = String(col);
     applyFilePaint(cell, refs[0].file.index, state.gridTheme);
 
     var owners = uniqueFiles(refs);
@@ -1946,6 +2022,17 @@ function initApp(doc) {
     state.gridTheme = themeById(els.gridTheme.value).id;
     doc.documentElement.dataset.gridTheme = state.gridTheme;
     render();
+  });
+
+  buildCrosshair();
+
+  els.grid.addEventListener("mouseover", function (event) {
+    var cell = event.target.closest(".pgn");
+    if (!cell || cell.dataset.row === undefined) return;
+    moveCrosshair(cell);
+  });
+  els.grid.addEventListener("mouseleave", function () {
+    moveCrosshair(null);
   });
 
   els.filter.addEventListener("input", function () {

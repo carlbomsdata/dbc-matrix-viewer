@@ -385,6 +385,7 @@ main {
 }
 
 .pgn-grid {
+  position: relative;
   /* --cell is solved against the measured box in fitGrid(); this is only the
    * value used for the first paint. */
   --cell: 2.4rem;
@@ -429,6 +430,25 @@ main {
   margin-bottom: 3px;
   border-bottom: 1px solid var(--line);
 }
+/* The crosshair. Two bars over the cells, tinted just enough to read as a
+   guide rather than a selection. */
+.pgn-cross {
+  position: absolute;
+  pointer-events: none;
+  z-index: 3;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--grid-ink, var(--fg)) 9%, transparent);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--grid-ink, var(--fg)) 16%, transparent);
+}
+.pgn-cross[hidden] { display: none; }
+
+.pgn-col-head.hl,
+.pgn-row-label.hl {
+  color: var(--grid-ink, var(--fg));
+  font-weight: 700;
+}
+
 /* Nibble ticks: 0, 4, 8, C are where blocks tend to get handed out. */
 .pgn-col-head.tick,
 .pgn-row-label.tick { color: var(--fg); font-weight: 600; }
@@ -451,7 +471,6 @@ main {
   border-radius: 5px;
 }
 .pgn.free {
-  pointer-events: none;
   background: var(--panel);
   box-shadow: inset 0 0 0 1px var(--line);
 }
