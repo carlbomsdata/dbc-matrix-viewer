@@ -770,7 +770,7 @@ dialog.detail[open] { animation: detail-in 140ms ease-out; }
 
 .card-body {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: max-content minmax(0, 1fr);
   align-items: start;
   gap: 18px 28px;
   padding: 16px 18px 18px;
@@ -780,9 +780,13 @@ dialog.detail[open] { animation: detail-in 140ms ease-out; }
 
 .matrix {
   display: grid;
-  grid-template-columns: 1.9rem repeat(8, minmax(0, 1fr));
+  /* A fixed cell, not 1fr: stretching to the dialog width turned a byte into
+     a row of banners and squeezed the signal table off the edge. */
+  grid-template-columns: 1.9rem repeat(8, minmax(0, 2.5rem));
   gap: 2px;
   align-content: start;
+  width: max-content;
+  max-width: 100%;
 }
 
 .bit-head {
@@ -925,7 +929,7 @@ dialog.detail[open] { animation: detail-in 140ms ease-out; }
   text-transform: none;
 }
 
-.signals { min-width: 0; }
+.signals { min-width: 0; overflow-x: auto; }
 .legend-empty { margin: 0; color: var(--muted); font-size: 0.85rem; }
 
 .sigtable {
