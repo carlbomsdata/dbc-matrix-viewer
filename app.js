@@ -442,7 +442,10 @@ var PGN_END = 0xffff;
 var GRID_RANGES = [
   {
     id: "propb",
+    maxWidth: 1150,
+    blurb: "manufacturer-defined groups",
     label: "Proprietary B",
+    autoSelectable: true,
     note: "PGN 0xFF00\u2013FFFF",
     unit: "PGN",
     units: "PGNs",
@@ -469,7 +472,10 @@ var GRID_RANGES = [
   },
   {
     id: "std11",
+    maxWidth: 1680,
+    blurb: "standard CAN identifiers",
     label: "Standard 11-bit",
+    autoSelectable: true,
     note: "id 0x000\u20137FF",
     unit: "identifier",
     units: "ids",
@@ -491,6 +497,70 @@ var GRID_RANGES = [
     },
     cellTitle: function (cell) {
       return "0x" + cell.toString(16).toUpperCase().padStart(3, "0");
+    },
+  },
+  {
+    id: "pdu2",
+    maxWidth: 2400,
+    blurb: "broadcast groups, Proprietary B included",
+    label: "J1939 PDU2",
+    note: "PGN 0xF000\u2013FFFF",
+    unit: "PGN",
+    units: "PGNs",
+    /* One row per PDU format, one column per PDU specific. That is the shape
+     * J1939 actually has, and it puts Proprietary B on the bottom row. */
+    cols: 256,
+    rows: 16,
+    labelEvery: 16,
+    tickEvery: 16,
+    cellOf: function (msg) {
+      if (!msg.can.extended || msg.can.pduFormat < 240) return -1;
+      return msg.can.pgn - 0xf000;
+    },
+    rowLabel: function (row) {
+      return "0x" + (0xf0 + row).toString(16).toUpperCase() + "xx";
+    },
+    colLabel: function (col) {
+      return col.toString(16).toUpperCase().padStart(2, "0");
+    },
+    cellName: function (cell) {
+      var pgn = 0xf000 + cell;
+      return "PGN " + pgn + " (0x" + pgn.toString(16).toUpperCase() + ")";
+    },
+    cellTitle: function (cell) {
+      return "PGN 0x" + (0xf000 + cell).toString(16).toUpperCase();
+    },
+  },
+  {
+    id: "pdu1",
+    maxWidth: 1160,
+    blurb: "groups addressed to one node",
+    label: "J1939 PDU1",
+    note: "PF 0x00\u2013EF, addressed",
+    unit: "PGN",
+    units: "PGNs",
+    cols: 16,
+    rows: 15,
+    labelEvery: 1,
+    tickEvery: 4,
+    /* A PDU1 PGN is the PDU format byte shifted up; the low byte carries the
+     * destination address, so it is not part of the group number. */
+    cellOf: function (msg) {
+      if (!msg.can.extended || msg.can.pduFormat >= 240) return -1;
+      return msg.can.pduFormat;
+    },
+    rowLabel: function (row) {
+      return "0x" + (row * 16).toString(16).toUpperCase().padStart(2, "0") + "00";
+    },
+    colLabel: function (col) {
+      return col.toString(16).toUpperCase();
+    },
+    cellName: function (cell) {
+      var pgn = cell << 8;
+      return "PGN " + pgn + " (0x" + pgn.toString(16).toUpperCase().padStart(4, "0") + ")";
+    },
+    cellTitle: function (cell) {
+      return "PGN 0x" + (cell << 8).toString(16).toUpperCase().padStart(4, "0");
     },
   },
 ];
@@ -622,6 +692,21 @@ function isRealMessage(msg) {
   return msg.name !== "VECTOR__INDEPENDENT_SIG_MSG";
 }
 
+/* Why a message has no cell on the grid. Plain language first, the standard's
+ * name second, because "PDU1" tells you nothing if you have not read J1939. */
+function messageCategory(msg) {
+  if (!msg.can.extended) return "11-bit standard frames";
+
+  var pgn = msg.can.pgn;
+  if (isProprietaryB(msg)) return "Proprietary B (on the map)";
+  if (pgn >= 0xef00 && pgn <= 0xefff) return "Proprietary A, addressed to one node";
+  if (pgn === 0xec00) return "Transport protocol, setting up a multi-frame transfer";
+  if (pgn === 0xeb00) return "Transport protocol, the data frames themselves";
+  if (pgn >= 0xda00 && pgn <= 0xdbff) return "Diagnostics over CAN";
+  if (((pgn >> 8) & 0xff) < 240) return "Addressed to one node (J1939 PDU1)";
+  return "Broadcast to everyone, standard SAE groups (J1939 PDU2)";
+}
+
 function isProprietaryB(msg) {
   return msg.can.extended && msg.can.pgn >= PGN_BASE && msg.can.pgn <= PGN_END;
 }
@@ -651,6 +736,10 @@ function initApp(doc) {
     drop: doc.getElementById("drop"),
     status: doc.getElementById("status"),
     grid: doc.getElementById("grid"),
+    main: doc.querySelector("main"),
+    topbar: doc.querySelector(".topbar"),
+    footer: doc.querySelector(".footer"),
+    mapHead: doc.querySelector(".map-head"),
     mapBody: doc.querySelector(".map-body"),
     gridScroll: doc.querySelector(".grid-scroll"),
     side: doc.querySelector(".side"),
@@ -807,6 +896,7 @@ function initApp(doc) {
     var best = state.range;
     var bestCount = -1;
     GRID_RANGES.forEach(function (range) {
+      if (!range.autoSelectable) return;
       var count = 0;
       state.files.forEach(function (file) {
         file.db.messages.forEach(function (message) {
@@ -913,6 +1003,9 @@ function initApp(doc) {
       }
     }
 
+    /* Fixed per range, so the heading and legend never change width as a
+     * result of the cell size, which would feed straight back into it. */
+    els.panelMap.style.setProperty("--map-w", "min(100%, " + range.maxWidth + "px)");
     els.grid.style.setProperty("--cols", String(range.cols));
     els.grid.style.setProperty("--rows", String(range.rows));
     els.grid.dataset.range = range.id;
@@ -920,11 +1013,7 @@ function initApp(doc) {
     els.grid.appendChild(frag);
 
     els.mapTitle.textContent = range.label + " allocation";
-    els.mapSub.textContent =
-      range.note +
-      ". Rows down the side, columns across the top. Click a claimed " +
-      range.unit +
-      " for its layout.";
+    els.mapSub.textContent = range.note + " \u00b7 " + range.blurb;
     els.mapEmpty.hidden = used.size > 0;
     queueFit();
   }
@@ -985,11 +1074,19 @@ function initApp(doc) {
   /* Solve the cell size against the box the grid actually gets, rather than
    * guessing how tall the surrounding chrome is. The grid's height is linear
    * in the cell size, so one measured sample gives the exact answer. */
-  var MAX_CELL = { propb: 64, std11: 24 };
+  var MAX_CELL = { propb: 64, std11: 24, pdu2: 30, pdu1: 64 };
   /* Below this a cell stops reading as a cell. If the map cannot fit at this
    * size the content column scrolls, which beats an unreadable grid. */
   var MIN_CELL = 11;
 
+  function px(value) {
+    var n = parseFloat(value);
+    return isNaN(n) ? 0 : n;
+  }
+
+  /* Measure against the viewport and the chrome around the grid. Deriving the
+   * space from the grid's own flex parent is circular: the parent is sized by
+   * the grid, so it reports back whatever the last guess produced. */
   function solveCell(range) {
     var probe = els.grid.querySelector(".pgn");
     if (!probe) return null;
@@ -1002,12 +1099,38 @@ function initApp(doc) {
     var overheadH = gridBox.height - range.rows * sample;
     var overheadW = gridBox.width - range.cols * sample;
 
-    var frame = els.gridScroll.offsetHeight - els.grid.offsetHeight;
-    var legend = els.side ? els.side.offsetHeight : 0;
-    var bodyGap = parseFloat(getComputedStyle(els.mapBody).rowGap) || 0;
+    var mainStyle = getComputedStyle(els.main);
+    var panelGap = px(getComputedStyle(els.panelMap).rowGap);
+    var bodyGap = px(getComputedStyle(els.mapBody).rowGap);
+    /* From the frame's own padding and border. Measuring it as the difference
+     * between the frame and the grid goes negative the moment flex squashes
+     * the frame, which poisons every term after it. */
+    var frameStyle = getComputedStyle(els.gridScroll);
+    var frame =
+      px(frameStyle.paddingTop) +
+      px(frameStyle.paddingBottom) +
+      px(frameStyle.borderTopWidth) +
+      px(frameStyle.borderBottomWidth);
 
-    var availH = els.mapBody.clientHeight - legend - bodyGap - frame;
-    var availW = els.mapBody.clientWidth - frame;
+    var chrome =
+      els.topbar.offsetHeight +
+      els.footer.offsetHeight +
+      px(mainStyle.paddingTop) +
+      px(mainStyle.paddingBottom) +
+      els.mapHead.offsetHeight +
+      panelGap +
+      (els.mapEmpty.hidden ? 0 : els.mapEmpty.offsetHeight + panelGap) +
+      (els.others.hidden ? 0 : els.others.offsetHeight + panelGap) +
+      (els.side ? els.side.offsetHeight + bodyGap : 0) +
+      frame;
+
+    var availH = window.innerHeight - chrome;
+    var availW =
+      els.mapBody.clientWidth -
+      px(frameStyle.paddingLeft) -
+      px(frameStyle.paddingRight) -
+      px(frameStyle.borderLeftWidth) -
+      px(frameStyle.borderRightWidth);
 
     var byHeight = (availH - overheadH) / range.rows;
     var byWidth = (availW - overheadW) / range.cols;
@@ -1038,7 +1161,14 @@ function initApp(doc) {
     });
   }
 
-  window.addEventListener("resize", queueFit);
+  /* A ResizeObserver fires after layout has settled; a resize listener plus one
+   * animation frame does not, and measuring too early gives a cell size that
+   * belongs to the previous window. */
+  if (typeof ResizeObserver !== "undefined" && els.mapBody) {
+    new ResizeObserver(queueFit).observe(els.mapBody);
+  } else {
+    window.addEventListener("resize", queueFit);
+  }
 
   /* ---- file legend ---- */
 
@@ -1127,13 +1257,44 @@ function initApp(doc) {
     }
     if (query) els.others.open = true;
 
-    els.othersHead.textContent = "Outside " + activeRange().label;
-    els.othersCount.textContent = others.length + " message" + (others.length === 1 ? "" : "s");
+    els.othersHead.textContent = "Not on the map";
+    els.othersCount.textContent =
+      others.length +
+      (others.length === 1 ? " message whose id falls outside " : " messages whose ids fall outside ") +
+      activeRange().note;
+
+    /* 70 chips in one run is a wall. Group them by why they are not on the
+     * map, which is the question the heading raises. */
+    var groups = new Map();
+    others.forEach(function (ref) {
+      var key = messageCategory(ref.message);
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(ref);
+    });
+
+    var ordered = Array.prototype.slice.call(groups.entries()).sort(function (a, b) {
+      return b[1].length - a[1].length;
+    });
 
     var frag = doc.createDocumentFragment();
-    others.forEach(function (ref) {
-      frag.appendChild(otherChip(ref));
+    ordered.forEach(function (entry) {
+      var heading = doc.createElement("h3");
+      heading.className = "others-group";
+      heading.textContent = entry[0];
+      var count = doc.createElement("span");
+      count.className = "others-count";
+      count.textContent = entry[1].length;
+      heading.appendChild(count);
+      frag.appendChild(heading);
+
+      var row = doc.createElement("div");
+      row.className = "others-row";
+      entry[1].forEach(function (ref) {
+        row.appendChild(otherChip(ref));
+      });
+      frag.appendChild(row);
     });
+
     els.othersList.textContent = "";
     els.othersList.appendChild(frag);
   }
