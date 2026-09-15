@@ -1021,6 +1021,7 @@ function initApp(doc) {
     els.grid.style.setProperty("--cols", String(range.cols));
     crosshair.row = null;
     crosshair.col = null;
+    crosshair.geom = null;
     els.grid.style.setProperty("--rows", String(range.rows));
     els.grid.dataset.range = range.id;
     els.grid.textContent = "";
@@ -1039,7 +1040,7 @@ function initApp(doc) {
   /* Excel-style crosshair. Two bars placed on the grid rather than a class on
    * every cell of the row and column, so hovering costs the same whether the
    * range holds 256 cells or 4096. */
-  var crosshair = { row: null, col: null, rowBar: null, colBar: null, label: null, head: null };
+  var crosshair = { row: null, col: null, rowBar: null, colBar: null, label: null, head: null, geom: null };
 
   function buildCrosshair() {
     crosshair.rowBar = doc.createElement("div");
@@ -1050,6 +1051,28 @@ function initApp(doc) {
     crosshair.colBar.hidden = true;
     els.grid.appendChild(crosshair.rowBar);
     els.grid.appendChild(crosshair.colBar);
+  }
+
+  /* Geometry is measured once per layout, not per mouse move: reading the DOM
+   * while hovering a 4096-cell grid forces a layout each time. */
+  function measureCrosshair() {
+    var first = els.grid.querySelector(".pgn");
+    if (!first) {
+      crosshair.geom = null;
+      return;
+    }
+    var origin = els.grid.getBoundingClientRect();
+    var box = first.getBoundingClientRect();
+    var gap = parseFloat(getComputedStyle(els.grid).columnGap) || 0;
+    crosshair.geom = {
+      left: box.left - origin.left,
+      top: box.top - origin.top,
+      cellW: box.width,
+      cellH: box.height,
+      gap: gap,
+      width: origin.width,
+      height: origin.height,
+    };
   }
 
   function moveCrosshair(cell) {
@@ -1070,28 +1093,24 @@ function initApp(doc) {
       return;
     }
 
-    /* Measured from the cell rather than worked out from grid line numbers,
-     * which have to account for the header row, the label column and the gaps
-     * and get it wrong the moment any of those change. */
-    var origin = els.grid.getBoundingClientRect();
-    var box = cell.getBoundingClientRect();
-    var first = els.grid.querySelector(".pgn");
-    if (!first) return;
-    var firstBox = first.getBoundingClientRect();
-    var left = firstBox.left - origin.left;
-    var top = firstBox.top - origin.top;
+    if (!crosshair.geom) measureCrosshair();
+    var g = crosshair.geom;
+    if (!g) return;
+
+    var x = g.left + col * (g.cellW + g.gap);
+    var y = g.top + row * (g.cellH + g.gap);
 
     crosshair.rowBar.hidden = false;
-    crosshair.rowBar.style.top = box.top - origin.top + "px";
-    crosshair.rowBar.style.height = box.height + "px";
-    crosshair.rowBar.style.left = left + "px";
-    crosshair.rowBar.style.width = origin.width - left + "px";
+    crosshair.rowBar.style.top = y + "px";
+    crosshair.rowBar.style.height = g.cellH + "px";
+    crosshair.rowBar.style.left = g.left + "px";
+    crosshair.rowBar.style.width = g.width - g.left + "px";
 
     crosshair.colBar.hidden = false;
-    crosshair.colBar.style.left = box.left - origin.left + "px";
-    crosshair.colBar.style.width = box.width + "px";
-    crosshair.colBar.style.top = top + "px";
-    crosshair.colBar.style.height = origin.height - top + "px";
+    crosshair.colBar.style.left = x + "px";
+    crosshair.colBar.style.width = g.cellW + "px";
+    crosshair.colBar.style.top = g.top + "px";
+    crosshair.colBar.style.height = g.height - g.top + "px";
 
     crosshair.label = els.grid.querySelectorAll(".pgn-row-label")[row];
     crosshair.head = els.grid.querySelectorAll(".pgn-col-head")[col + 1];
@@ -1270,6 +1289,7 @@ function initApp(doc) {
       els.grid.style.setProperty("--label-x", labelSize(cell.w) + "px");
       els.grid.style.setProperty("--label-y", labelSize(cell.h) + "px");
     }
+    crosshair.geom = null;
   }
 
   function labelSize(extent) {
@@ -1600,6 +1620,11 @@ function initApp(doc) {
     var wrap = doc.createElement("div");
     wrap.className = "matrix-wrap";
 
+    var caption = doc.createElement("h4");
+    caption.className = "pane-title";
+    caption.textContent = "Byte \u00d7 bit layout";
+    wrap.appendChild(caption);
+
     var grid = doc.createElement("div");
     grid.className = "matrix";
     grid.setAttribute("role", "presentation");
@@ -1735,33 +1760,82 @@ function initApp(doc) {
     return run;
   }
 
-  /* ---- signal list ---- */
+  /* ---- signal table ---- */
+
+  var SIGNAL_COLUMNS = [
+    { key: "signal", label: "Signal" },
+    { key: "bits", label: "Bits", title: "Start bit and length, as the DBC writes it" },
+    { key: "bytes", label: "Bytes" },
+    { key: "order", label: "Order", title: "Intel is little-endian, Motorola big-endian" },
+    { key: "sign", label: "Sign" },
+    { key: "scale", label: "Scale", title: "Factor and offset applied to the raw value" },
+    { key: "range", label: "Range" },
+    { key: "unit", label: "Unit" },
+  ];
 
   function renderSignalList(msg) {
-    var legend = doc.createElement("div");
-    legend.className = "legend";
+    var wrap = doc.createElement("div");
+    wrap.className = "signals";
+
+    var caption = doc.createElement("h4");
+    caption.className = "pane-title";
+    caption.textContent = msg.signals.length
+      ? msg.signals.length + (msg.signals.length === 1 ? " signal" : " signals")
+      : "Signals";
+    wrap.appendChild(caption);
 
     if (!msg.signals.length) {
       var none = doc.createElement("p");
       none.className = "legend-empty";
       none.textContent = "No signals defined for this message.";
-      legend.appendChild(none);
-      return legend;
+      wrap.appendChild(none);
+      return wrap;
     }
 
-    msg.signals.forEach(function (sig) {
-      legend.appendChild(renderSignalRow(sig));
+    var table = doc.createElement("table");
+    table.className = "sigtable";
+
+    var thead = doc.createElement("thead");
+    var headRow = doc.createElement("tr");
+    SIGNAL_COLUMNS.forEach(function (col) {
+      var th = doc.createElement("th");
+      th.textContent = col.label;
+      th.className = "col-" + col.key;
+      if (col.title) th.title = col.title;
+      headRow.appendChild(th);
     });
-    return legend;
+    thead.appendChild(headRow);
+    table.appendChild(thead);
+
+    var body = doc.createElement("tbody");
+    msg.signals.forEach(function (sig) {
+      body.appendChild(signalRow(sig));
+      if (sig.comment || (sig.values && sig.values.length)) {
+        body.appendChild(signalExtraRow(sig));
+      }
+    });
+    table.appendChild(body);
+    wrap.appendChild(table);
+    return wrap;
   }
 
-  function renderSignalRow(sig) {
-    var row = doc.createElement("div");
-    row.className = "legend-row";
+  function cell(text, cls) {
+    var td = doc.createElement("td");
+    if (cls) td.className = cls;
+    td.textContent = text;
+    return td;
+  }
 
+  function signalRow(sig) {
+    var row = doc.createElement("tr");
+    row.className = "sigrow";
+    row.dataset.sig = sig.id;
+
+    var nameCell = doc.createElement("td");
+    nameCell.className = "col-signal";
     var button = doc.createElement("button");
     button.type = "button";
-    button.className = "legend-main";
+    button.className = "signame";
     button.dataset.sig = sig.id;
     applyPaint(button, sig.index);
 
@@ -1770,52 +1844,56 @@ function initApp(doc) {
     swatch.setAttribute("aria-hidden", "true");
     button.appendChild(swatch);
 
-    var text = doc.createElement("span");
-    text.className = "legend-text";
+    var name = doc.createElement("span");
+    name.className = "signame-text";
+    name.textContent = sig.name;
+    button.appendChild(name);
 
-    var nameLine = doc.createElement("span");
-    nameLine.className = "legend-name";
-    nameLine.textContent = sig.name;
     if (sig.mux) {
       var mux = doc.createElement("span");
       mux.className = "badge";
-      mux.textContent = sig.isMultiplexor && sig.mux === "M" ? "mux" : sig.mux;
+      mux.textContent = sig.mux === "M" ? "mux" : sig.mux;
       mux.title =
         sig.mux === "M"
-          ? "Multiplexor signal"
-          : "Multiplexed \u2014 present when the multiplexor is " + sig.muxValue;
-      nameLine.appendChild(mux);
+          ? "Carries the multiplexor value"
+          : "Present only when the multiplexor is " + sig.muxValue;
+      button.appendChild(mux);
     }
-    text.appendChild(nameLine);
+    button.title = "Show the DBC source for " + sig.name;
+    nameCell.appendChild(button);
+    row.appendChild(nameCell);
 
-    var facts = doc.createElement("span");
-    facts.className = "legend-facts mono";
-    facts.appendChild(
-      fact(sig.startBit + "|" + sig.length + "@" + (sig.littleEndian ? "1" : "0") + (sig.signed ? "-" : "+"))
-    );
-    facts.appendChild(fact(byteOrderLabel(sig)));
-    facts.appendChild(fact(sig.signed ? "signed" : "unsigned"));
-    if (rangeLabel(sig)) facts.appendChild(fact(rangeLabel(sig)));
-    var scale = scalingLabel(sig);
-    if (scale) facts.appendChild(fact(scale));
-    if (sig.unit) facts.appendChild(fact(sig.unit));
-    text.appendChild(facts);
+    row.appendChild(cell(sig.startBit + " | " + sig.length, "mono"));
+    row.appendChild(cell(rangeLabel(sig).replace(/^bytes? /, ""), "mono"));
+    row.appendChild(cell(byteOrderLabel(sig)));
+    row.appendChild(cell(sig.signed ? "signed" : "unsigned"));
+    row.appendChild(cell(scalingLabel(sig) || "\u2013", "mono"));
+    row.appendChild(cell(physicalRange(sig), "mono"));
+    row.appendChild(cell(sig.unit || "\u2013"));
+    return row;
+  }
+
+  /* Comments and value tables get their own full-width row so the columns
+   * above stay narrow and scannable. */
+  function signalExtraRow(sig) {
+    var row = doc.createElement("tr");
+    row.className = "sigextra";
+    row.dataset.sig = sig.id;
+    var td = doc.createElement("td");
+    td.colSpan = SIGNAL_COLUMNS.length;
 
     if (sig.comment) {
-      var note = doc.createElement("span");
-      note.className = "legend-comment";
+      var note = doc.createElement("p");
+      note.className = "sigcomment";
       note.textContent = sig.comment.text;
-      text.appendChild(note);
+      td.appendChild(note);
     }
-
-    button.appendChild(text);
-    row.appendChild(button);
 
     if (sig.values && sig.values.length) {
       var details = doc.createElement("details");
       details.className = "values";
       var summary = doc.createElement("summary");
-      summary.textContent = sig.values.length + " values";
+      summary.textContent = sig.values.length + " defined values";
       details.appendChild(summary);
       var list = doc.createElement("dl");
       list.className = "value-list mono";
@@ -1828,16 +1906,17 @@ function initApp(doc) {
         list.appendChild(dd);
       });
       details.appendChild(list);
-      row.appendChild(details);
+      td.appendChild(details);
     }
 
+    row.appendChild(td);
     return row;
   }
 
-  function fact(text) {
-    var span = doc.createElement("span");
-    span.textContent = text;
-    return span;
+  function physicalRange(sig) {
+    if (!Number.isFinite(sig.min) || !Number.isFinite(sig.max)) return "\u2013";
+    if (sig.min === 0 && sig.max === 0) return "\u2013";
+    return trimNumber(sig.min) + " \u2026 " + trimNumber(sig.max);
   }
 
   /* ---- signal selection + DBC source panel ---- */

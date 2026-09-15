@@ -96,8 +96,7 @@ body {
   gap: 10px 20px;
   padding: 12px max(16px, min(4vw, 32px));
   border-bottom: 1px solid var(--line);
-  background: color-mix(in srgb, var(--bg) 88%, transparent);
-  backdrop-filter: blur(8px);
+  background: var(--bg);
 }
 
 .brand {
@@ -401,7 +400,7 @@ main {
 }
 
 .pgn-grid[data-range="pdu2"] .pgn-row-label { padding-right: 6px; }
-.pgn-grid[data-range="pdu2"] .pgn.used:hover { transform: scale(1.5); }
+
 
 .pgn-grid[data-range="std11"] {
   grid-template-columns: 2.6rem repeat(var(--cols, 16), minmax(0, var(--cell)));
@@ -409,7 +408,7 @@ main {
 }
 
 .pgn-grid[data-range="std11"] .pgn-row-label { padding-right: 6px; }
-.pgn-grid[data-range="std11"] .pgn.used:hover { transform: scale(1.5); }
+
 
 .pgn-col-head,
 .pgn-row-label {
@@ -484,11 +483,12 @@ main {
   background: hsl(var(--h) 42% 66%);
   background: oklch(calc(var(--l) + var(--shift)) var(--c) var(--h));
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.17), inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  transition: filter 110ms ease, opacity 110ms ease, transform 110ms ease;
 }
 .pgn.used:hover {
-  filter: brightness(1.09) saturate(1.06);
-  transform: scale(1.08);
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.17),
+    0 0 0 2px var(--grid-bg, var(--bg)),
+    0 0 0 3px color-mix(in srgb, var(--grid-ink, var(--fg)) 55%, transparent);
   z-index: 1;
 }
 .pgn.used.dim { opacity: 0.22; }
@@ -672,8 +672,7 @@ dialog.detail {
 dialog.detail:not([open]) { display: none; }
 dialog.detail[open] { display: flex; flex-direction: column; }
 dialog.detail::backdrop {
-  background: rgba(20, 20, 22, 0.45);
-  backdrop-filter: blur(2px);
+  background: rgba(18, 18, 20, 0.5);
 }
 @media (prefers-color-scheme: dark) {
   dialog.detail::backdrop { background: rgba(0, 0, 0, 0.62); }
@@ -701,7 +700,7 @@ dialog.detail[open] { animation: detail-in 140ms ease-out; }
 .detail-body {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
+  overflow: auto;
   overscroll-behavior: contain;
 }
 
@@ -771,9 +770,10 @@ dialog.detail[open] { animation: detail-in 140ms ease-out; }
 
 .card-body {
   display: grid;
-  grid-template-columns: minmax(0, 26rem) minmax(0, 1fr);
-  gap: 18px 26px;
-  padding: 16px;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 18px 28px;
+  padding: 16px 18px 18px;
 }
 
 /* ---------- the matrix ---------- */
@@ -847,7 +847,7 @@ dialog.detail[open] { animation: detail-in 140ms ease-out; }
   font-family: var(--sans);
   font-size: 0.7rem;
   font-weight: 550;
-  transition: filter 110ms ease, opacity 110ms ease;
+  transition: opacity 110ms ease;
 }
 
 /* Rule off every bit boundary inside a run, so a signal spanning whole bytes
@@ -888,7 +888,7 @@ dialog.detail[open] { animation: detail-in 140ms ease-out; }
 .cell.sig[data-span="1"] .cell-label,
 .cell.sig[data-span="2"] .cell-label { visibility: hidden; }
 
-.cell.sig:hover { filter: brightness(1.06) saturate(1.08); }
+.cell.sig:hover { box-shadow: inset 0 0 0 2px color-mix(in srgb, currentColor 45%, transparent); }
 
 /* Selection: the chosen signal keeps full colour and gains an inner rule,
  * everything else in the card recedes. Unmistakable next to a hover, and it
@@ -897,7 +897,7 @@ dialog.detail[open] { animation: detail-in 140ms ease-out; }
   box-shadow: inset 0 0 0 1.5px currentColor;
   z-index: 2;
 }
-.card.has-selection .cell.sig:not(.selected) { opacity: 0.5; filter: saturate(0.7); }
+.card.has-selection .cell.sig:not(.selected) { opacity: 0.45; }
 .card.has-selection .cell.empty { opacity: 0.5; }
 .card.has-selection .legend-row:not(:has(.selected)) { opacity: 0.6; }
 .legend-main.selected {
@@ -914,82 +914,110 @@ dialog.detail[open] { animation: detail-in 140ms ease-out; }
 
 .matrix-note { margin: 8px 0 0; color: var(--faint); font-size: 0.75rem; }
 
-/* ---------- legend ---------- */
+/* ---------- signal table ---------- */
 
-.legend {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
+.pane-title {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.03em;
+  text-transform: none;
 }
+
+.signals { min-width: 0; }
 .legend-empty { margin: 0; color: var(--muted); font-size: 0.85rem; }
 
-.legend-row { min-width: 0; }
-
-.legend-main {
-  display: flex;
-  align-items: flex-start;
-  gap: 9px;
+.sigtable {
   width: 100%;
-  min-height: 0;
-  padding: 5px 7px;
-  border: 1px solid transparent;
-  border-radius: 7px;
-  background: transparent;
-  text-align: left;
-  transition: background 110ms ease;
+  border-collapse: collapse;
+  font-size: 0.78rem;
 }
-.legend-main:hover { background: var(--panel); border-color: transparent; }
+.sigtable th {
+  padding: 0 8px 6px 0;
+  border-bottom: 1px solid var(--line);
+  color: var(--faint);
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap;
+}
+.sigtable td {
+  padding: 5px 8px 5px 0;
+  border-bottom: 1px solid var(--line);
+  vertical-align: baseline;
+  white-space: nowrap;
+}
+.sigtable .mono { font-family: var(--mono); font-size: 0.73rem; font-variant-numeric: tabular-nums; }
+/* The name column takes the slack; the rest hug their content. */
+.sigtable .col-signal { width: auto; padding-right: 16px; }
+.sigtable th:not(.col-signal),
+.sigtable td:not(.col-signal) { width: 1%; }
+.sigtable tr:last-child td { border-bottom: 0; }
+
+.signame {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 0;
+  padding: 2px 6px 2px 4px;
+  margin-left: -4px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  font: inherit;
+  font-size: 0.79rem;
+  font-weight: 550;
+  color: var(--fg);
+  text-align: left;
+}
+.signame:hover { background: var(--panel); border-color: var(--line-strong); }
+.signame-text { white-space: nowrap; }
+.signame.selected { background: var(--panel); border-color: var(--fg); }
 
 .swatch {
   flex: none;
   width: 11px;
   height: 11px;
-  margin-top: 4px;
-  border: 1px solid;
   border-radius: 3px;
+  background: hsl(var(--h) 52% 84%);
+  background: oklch(calc(0.862 + var(--dl)) var(--c) var(--h));
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.22);
+}
+@media (prefers-color-scheme: dark) {
+  .swatch { background: oklch(calc(0.415 + var(--dl)) var(--c) var(--h)); }
 }
 
-.legend-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-.legend-name {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.84rem;
-  font-weight: 550;
-  overflow-wrap: anywhere;
-}
 .badge {
   padding: 0 5px;
   border-radius: 4px;
   background: var(--accent);
   color: var(--accent-fg);
   font-family: var(--mono);
-  font-size: 0.65rem;
+  font-size: 0.64rem;
   font-weight: 600;
-  line-height: 1.5;
+  line-height: 1.6;
 }
-.legend-facts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px 5px;
-  color: var(--muted);
-  font-size: 0.71rem;
-}
-.legend-facts span:not(:last-child)::after {
-  content: "\00b7";
-  margin-left: 5px;
-  color: var(--line-strong);
-}
-.legend-comment { color: var(--faint); font-size: 0.75rem; }
 
-.values { margin: 0 0 2px 34px; }
+.sigextra td {
+  padding: 0 0 8px;
+  white-space: normal;
+}
+.sigcomment {
+  margin: 0 0 4px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  max-width: 68ch;
+}
+
+.values { margin: 0; }
 .values summary {
   display: inline-block;
-  padding: 1px 5px;
+  padding: 1px 6px;
+  border: 1px solid var(--line);
   border-radius: 5px;
   color: var(--muted);
-  font-size: 0.72rem;
+  font-size: 0.71rem;
   cursor: pointer;
 }
 .values summary:hover { background: var(--panel); color: var(--fg); }
@@ -997,13 +1025,17 @@ dialog.detail[open] { animation: detail-in 140ms ease-out; }
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   gap: 1px 10px;
-  margin: 5px 0 7px;
+  margin: 6px 0 2px;
   padding: 8px 10px;
   border-left: 2px solid var(--line);
   font-size: 0.72rem;
 }
 .value-list dt { color: var(--muted); text-align: right; }
 .value-list dd { margin: 0; overflow-wrap: anywhere; }
+
+/* Selection: the chosen signal keeps full colour, the rest recede. */
+.card.has-selection .sigrow:not(:has(.selected)),
+.card.has-selection .sigextra:not([data-sig-selected]) { opacity: 0.55; }
 
 /* ---------- source panel ---------- */
 
@@ -1073,7 +1105,7 @@ dialog.detail[open] { animation: detail-in 140ms ease-out; }
     grid-template-columns: 2.2rem repeat(var(--cols, 16), minmax(0, var(--cell)));
   }
 
-  .pgn.used:hover { transform: none; }
+
   .pgn-row-label { padding-right: 5px; margin-right: 2px; }
   .pgn-col-head { padding-bottom: 4px; margin-bottom: 2px; }
   .pgn-row-label { padding-right: 4px; }
