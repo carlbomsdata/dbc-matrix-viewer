@@ -442,6 +442,9 @@ var PGN_END = 0xffff;
 var GRID_RANGES = [
   {
     id: "propb",
+    valueOf: function (slot) {
+      return PGN_BASE + slot;
+    },
     maxWidth: 1150,
     blurb: "manufacturer-defined groups",
     label: "Proprietary B",
@@ -472,6 +475,9 @@ var GRID_RANGES = [
   },
   {
     id: "std11",
+    valueOf: function (slot) {
+      return slot;
+    },
     maxWidth: 1680,
     blurb: "standard CAN identifiers",
     label: "Standard 11-bit",
@@ -501,6 +507,9 @@ var GRID_RANGES = [
   },
   {
     id: "pdu2",
+    valueOf: function (slot) {
+      return 0xf000 + slot;
+    },
     maxWidth: 2400,
     blurb: "broadcast groups, Proprietary B included",
     label: "J1939 PDU2",
@@ -533,6 +542,9 @@ var GRID_RANGES = [
   },
   {
     id: "pdu1",
+    valueOf: function (slot) {
+      return slot << 8;
+    },
     maxWidth: 1160,
     blurb: "groups addressed to one node",
     label: "J1939 PDU1",
@@ -1038,7 +1050,8 @@ function initApp(doc) {
     var cell = doc.createElement("button");
     cell.type = "button";
     cell.className = "pgn used";
-    cell.dataset.pgn = String(slot);
+    cell.dataset.pgn = String(range.valueOf ? range.valueOf(slot) : slot);
+    cell.dataset.key = "pgn:" + range.id + ":" + slot;
     applyFilePaint(cell, refs[0].file.index, state.gridTheme);
 
     var owners = uniqueFiles(refs);
@@ -1053,12 +1066,13 @@ function initApp(doc) {
     if (query && !refs.some(function (ref) { return matches(ref, query); })) {
       cell.classList.add("dim");
     }
-    if (state.selected && state.selected.key === "pgn:" + range.id + ":" + slot) {
+    if (state.selected && state.selected.key === cell.dataset.key) {
       cell.classList.add("selected");
+      selectedNode = cell;
     }
 
     cell.addEventListener("click", function () {
-      select("pgn:" + range.id + ":" + slot, range.cellTitle(slot), refs);
+      select(cell.dataset.key, range.cellTitle(slot), refs, cell);
     });
     return cell;
   }
@@ -1077,7 +1091,7 @@ function initApp(doc) {
   var MAX_CELL = { propb: 64, std11: 24, pdu2: 30, pdu1: 64 };
   /* Below this a cell stops reading as a cell. If the map cannot fit at this
    * size the content column scrolls, which beats an unreadable grid. */
-  var MIN_CELL = 11;
+  var MIN_CELL = 4;
 
   function px(value) {
     var n = parseFloat(value);
@@ -1124,7 +1138,9 @@ function initApp(doc) {
       (els.side ? els.side.offsetHeight + bodyGap : 0) +
       frame;
 
-    var availH = window.innerHeight - chrome;
+    /* A pixel of slack: every term above is rounded, and being one pixel over
+     * is the difference between no scrollbar and a scrollbar. */
+    var availH = window.innerHeight - chrome - 3;
     var availW =
       els.mapBody.clientWidth -
       px(frameStyle.paddingLeft) -
@@ -1141,6 +1157,9 @@ function initApp(doc) {
    * to settle even when the legend rewraps as the grid changes width. */
   function fitGrid() {
     if (!els.mapBody || els.panelMap.hidden) return;
+    /* The map is behind a modal; refitting it now costs a full layout of every
+     * cell and nobody can see the result. */
+    if (els.detail.open) return;
     var range = activeRange();
     var previous = null;
     for (var pass = 0; pass < 4; pass++) {
@@ -1148,6 +1167,10 @@ function initApp(doc) {
       if (cell === null || cell === previous) break;
       previous = cell;
       els.grid.style.setProperty("--cell", cell + "px");
+      els.grid.style.setProperty(
+        "--label",
+        Math.max(5, Math.min(11, Math.round(cell * 0.58))) + "px"
+      );
     }
   }
 
@@ -1272,7 +1295,9 @@ function initApp(doc) {
       groups.get(key).push(ref);
     });
 
-    var ordered = Array.prototype.slice.call(groups.entries()).sort(function (a, b) {
+    /* Array.from, not slice.call: a Map iterator has no length, so slice
+       returns an empty array and the list silently renders nothing. */
+    var ordered = Array.from(groups.entries()).sort(function (a, b) {
       return b[1].length - a[1].length;
     });
 
@@ -1307,7 +1332,11 @@ function initApp(doc) {
     chip.type = "button";
     chip.className = "other-chip";
     applyFilePaint(chip, ref.file.index, state.gridTheme);
-    if (state.selected && state.selected.key === key) chip.classList.add("selected");
+    chip.dataset.key = key;
+    if (state.selected && state.selected.key === key) {
+      chip.classList.add("selected");
+      selectedNode = chip;
+    }
 
     var swatch = doc.createElement("span");
     swatch.className = "file-swatch";
@@ -1325,20 +1354,33 @@ function initApp(doc) {
 
     chip.title = msg.name + " \u00b7 " + msg.can.hex + " \u00b7 " + ref.file.label;
     chip.addEventListener("click", function () {
-      select(key, msg.name, [ref]);
+      select(key, msg.name, [ref], chip);
     });
     return chip;
   }
 
   /* ---- selection ---- */
 
-  function select(key, title, refs) {
+  /* Opening the dialog used to re-render the whole map: 4096 elements rebuilt
+   * per click on the dense ranges. Now only the marker moves, and the element
+   * comes from the click rather than from a scan across every cell. */
+  var selectedNode = null;
+
+  function markSelection(node) {
+    if (selectedNode) selectedNode.classList.remove("selected");
+    selectedNode = node || null;
+    if (selectedNode) selectedNode.classList.add("selected");
+  }
+
+  function select(key, title, refs, node) {
     if (state.selected && state.selected.key === key) {
       state.selected = null;
+      markSelection(null);
     } else {
       state.selected = { key: key, title: title, refs: refs, signal: null };
+      markSelection(node);
     }
-    render();
+    renderDetail();
   }
 
   function renderDetail() {
@@ -1365,7 +1407,8 @@ function initApp(doc) {
   function closeDetail() {
     if (!state.selected) return;
     state.selected = null;
-    render();
+    markSelection(null);
+    renderDetail();
   }
 
   /* ---- message card (matrix + signal list + source) ---- */
@@ -1857,7 +1900,8 @@ function initApp(doc) {
     els.gridTheme.appendChild(option);
   });
   els.gridTheme.value = state.gridTheme;
-  els.panelMap.dataset.gridTheme = state.gridTheme;
+  /* on the root element, so the dialog in the top layer inherits it too */
+  doc.documentElement.dataset.gridTheme = state.gridTheme;
   GRID_RANGES.forEach(function (range) {
     var option = doc.createElement("option");
     option.value = range.id;
@@ -1874,7 +1918,7 @@ function initApp(doc) {
 
   els.gridTheme.addEventListener("change", function () {
     state.gridTheme = themeById(els.gridTheme.value).id;
-    els.panelMap.dataset.gridTheme = state.gridTheme;
+    doc.documentElement.dataset.gridTheme = state.gridTheme;
     render();
   });
 
