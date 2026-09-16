@@ -625,6 +625,7 @@ function rangeCellCount(range) {
  * phosphor  a CRT terminal: dim green base, bright traces */
 
 var GRID_THEMES = [
+  /* Adaptive: a palette only. The page stays light or dark with the system. */
   {
     id: "slate",
     label: "Slate",
@@ -642,6 +643,7 @@ var GRID_THEMES = [
   {
     id: "okabe",
     label: "Okabe\u2013Ito",
+    note: "colour-vision safe",
     paints: [
       { h: 250, c: 0.14, l: 0.52 },
       { h: 70, c: 0.15, l: 0.75 },
@@ -668,9 +670,111 @@ var GRID_THEMES = [
     ],
   },
   {
+    id: "tableau",
+    label: "Tableau 10",
+    paints: [
+      { h: 255.9, c: 0.078, l: 0.566 },
+      { h: 62.7, c: 0.135, l: 0.733 },
+      { h: 24.1, c: 0.143, l: 0.629 },
+      { h: 189.8, c: 0.052, l: 0.74 },
+      { h: 138.1, c: 0.115, l: 0.648 },
+      { h: 94.2, c: 0.129, l: 0.843 },
+      { h: 333.8, c: 0.073, l: 0.641 },
+      { h: 13.6, c: 0.094, l: 0.791 },
+    ],
+  },
+  {
+    id: "nord",
+    label: "Nord",
+    paints: [
+      { h: 217.5, c: 0.062, l: 0.775 },
+      { h: 15.3, c: 0.121, l: 0.606 },
+      { h: 131.1, c: 0.075, l: 0.768 },
+      { h: 84.1, c: 0.089, l: 0.855 },
+      { h: 332.7, c: 0.062, l: 0.692 },
+      { h: 248.7, c: 0.059, l: 0.697 },
+      { h: 38.2, c: 0.096, l: 0.693 },
+      { h: 194.5, c: 0.048, l: 0.763 },
+    ],
+  },
+  {
+    id: "solarized",
+    label: "Solarized",
+    paints: [
+      { h: 244.9, c: 0.139, l: 0.615 },
+      { h: 39.5, c: 0.173, l: 0.581 },
+      { h: 118.6, c: 0.151, l: 0.644 },
+      { h: 355.9, c: 0.202, l: 0.592 },
+      { h: 187.4, c: 0.102, l: 0.644 },
+      { h: 85.7, c: 0.134, l: 0.654 },
+      { h: 279.1, c: 0.126, l: 0.582 },
+      { h: 27.1, c: 0.206, l: 0.586 },
+    ],
+  },
+  {
+    id: "dracula",
+    label: "Dracula",
+    paints: [
+      { h: 301.9, c: 0.149, l: 0.742 },
+      { h: 148, c: 0.22, l: 0.871 },
+      { h: 66.6, c: 0.124, l: 0.834 },
+      { h: 346.8, c: 0.183, l: 0.755 },
+      { h: 212.8, c: 0.093, l: 0.883 },
+      { h: 112.8, c: 0.134, l: 0.955 },
+      { h: 24.4, c: 0.206, l: 0.682 },
+      { h: 270.1, c: 0.08, l: 0.56 },
+    ],
+  },
+  {
+    id: "viridis",
+    label: "Viridis",
+    note: "colour-vision safe",
+    paints: [
+      { h: 318.1, c: 0.137, l: 0.285 },
+      { h: 291.6, c: 0.123, l: 0.383 },
+      { h: 255.4, c: 0.091, l: 0.47 },
+      { h: 211.3, c: 0.083, l: 0.552 },
+      { h: 175, c: 0.113, l: 0.636 },
+      { h: 150.1, c: 0.161, l: 0.723 },
+      { h: 127.8, c: 0.193, l: 0.82 },
+      { h: 102.1, c: 0.186, l: 0.918 },
+    ],
+  },
+  {
+    id: "pastel",
+    label: "Pastel",
+    paints: [
+      { h: 21, c: 0.07, l: 0.88 },
+      { h: 158, c: 0.068, l: 0.89 },
+      { h: 268, c: 0.072, l: 0.88 },
+      { h: 76, c: 0.075, l: 0.92 },
+      { h: 208, c: 0.066, l: 0.89 },
+      { h: 330, c: 0.07, l: 0.89 },
+      { h: 120, c: 0.07, l: 0.9 },
+      { h: 48, c: 0.074, l: 0.91 },
+    ],
+  },
+  {
+    id: "mono",
+    label: "Monochrome",
+    note: "prints in grey",
+    paints: [
+      { h: 250, c: 0.004, l: 0.45 },
+      { h: 250, c: 0.004, l: 0.72 },
+      { h: 250, c: 0.004, l: 0.58 },
+      { h: 250, c: 0.004, l: 0.86 },
+      { h: 250, c: 0.004, l: 0.38 },
+      { h: 250, c: 0.004, l: 0.65 },
+      { h: 250, c: 0.004, l: 0.79 },
+      { h: 250, c: 0.004, l: 0.51 },
+    ],
+  },
+
+  /* Fixed: the theme brings its own field, so it looks the same either way. */
+  {
     id: "blueprint",
     label: "Blueprint",
-    fixed: true,
+    field: { bg: "#0a2d4a", ink: "#eaf4ff", rule: "rgba(203, 227, 247, 0.2)" },
     paints: [
       { h: 215, c: 0.015, l: 0.92 },
       { h: 60, c: 0.09, l: 0.88 },
@@ -685,7 +789,7 @@ var GRID_THEMES = [
   {
     id: "phosphor",
     label: "Phosphor",
-    fixed: true,
+    field: { bg: "#05110b", ink: "#c8ffd9", rule: "rgba(92, 231, 150, 0.18)" },
     paints: [
       { h: 150, c: 0.05, l: 0.52 },
       { h: 145, c: 0.18, l: 0.78 },
@@ -695,6 +799,51 @@ var GRID_THEMES = [
       { h: 25, c: 0.17, l: 0.68 },
       { h: 265, c: 0.14, l: 0.7 },
       { h: 55, c: 0.15, l: 0.86 },
+    ],
+  },
+  {
+    id: "amber",
+    label: "Amber CRT",
+    field: { bg: "#140d02", ink: "#ffcf7a", rule: "rgba(255, 176, 0, 0.2)" },
+    paints: [
+      { h: 73.3, c: 0.108, l: 0.508 },
+      { h: 76.4, c: 0.17, l: 0.812 },
+      { h: 90.3, c: 0.154, l: 0.882 },
+      { h: 56.8, c: 0.176, l: 0.751 },
+      { h: 70.8, c: 0.151, l: 0.702 },
+      { h: 90.3, c: 0.111, l: 0.914 },
+      { h: 65.4, c: 0.133, l: 0.594 },
+      { h: 92.1, c: 0.061, l: 0.956 },
+    ],
+  },
+  {
+    id: "midnight",
+    label: "Midnight",
+    field: { bg: "#0b1020", ink: "#dce6ff", rule: "rgba(220, 230, 255, 0.16)" },
+    paints: [
+      { h: 250, c: 0.02, l: 0.78 },
+      { h: 205, c: 0.1, l: 0.8 },
+      { h: 160, c: 0.09, l: 0.82 },
+      { h: 300, c: 0.1, l: 0.8 },
+      { h: 45, c: 0.11, l: 0.85 },
+      { h: 10, c: 0.1, l: 0.78 },
+      { h: 128, c: 0.1, l: 0.84 },
+      { h: 275, c: 0.11, l: 0.76 },
+    ],
+  },
+  {
+    id: "paper",
+    label: "Paper",
+    field: { bg: "#f3ece0", ink: "#2c2620", rule: "rgba(44, 38, 32, 0.2)" },
+    paints: [
+      { h: 75.1, c: 0.022, l: 0.501 },
+      { h: 27.3, c: 0.112, l: 0.46 },
+      { h: 151, c: 0.072, l: 0.486 },
+      { h: 250.7, c: 0.087, l: 0.458 },
+      { h: 84.4, c: 0.098, l: 0.543 },
+      { h: 316.5, c: 0.086, l: 0.467 },
+      { h: 196.7, c: 0.065, l: 0.501 },
+      { h: 43, c: 0.096, l: 0.481 },
     ],
   },
 ];
@@ -2117,15 +2266,42 @@ function initApp(doc) {
     els.fileInput.click();
   });
 
+  /* Two groups: palettes that follow the system light or dark setting, and
+   * themes that bring their own field and look the same in both. */
+  var adaptiveGroup = doc.createElement("optgroup");
+  adaptiveGroup.label = "Follows light and dark";
+  var fixedGroup = doc.createElement("optgroup");
+  fixedGroup.label = "Own background";
   GRID_THEMES.forEach(function (theme) {
     var option = doc.createElement("option");
     option.value = theme.id;
-    option.textContent = theme.label;
-    els.gridTheme.appendChild(option);
+    option.textContent = theme.label + (theme.note ? " \u00b7 " + theme.note : "");
+    (theme.field ? fixedGroup : adaptiveGroup).appendChild(option);
   });
+  els.gridTheme.appendChild(adaptiveGroup);
+  els.gridTheme.appendChild(fixedGroup);
+
+  /* On the root element, so the dialog in the top layer inherits it, and as
+   * custom properties so a new field theme needs no CSS of its own. */
+  function applyTheme(id) {
+    var theme = themeById(id);
+    state.gridTheme = theme.id;
+    var root = doc.documentElement;
+    root.dataset.gridTheme = theme.id;
+    root.dataset.gridFixed = theme.field ? "true" : "false";
+    if (theme.field) {
+      root.style.setProperty("--grid-bg", theme.field.bg);
+      root.style.setProperty("--grid-ink", theme.field.ink);
+      root.style.setProperty("--grid-rule", theme.field.rule);
+    } else {
+      root.style.removeProperty("--grid-bg");
+      root.style.removeProperty("--grid-ink");
+      root.style.removeProperty("--grid-rule");
+    }
+  }
+
   els.gridTheme.value = state.gridTheme;
-  /* on the root element, so the dialog in the top layer inherits it too */
-  doc.documentElement.dataset.gridTheme = state.gridTheme;
+  applyTheme(state.gridTheme);
   GRID_RANGES.forEach(function (range) {
     var option = doc.createElement("option");
     option.value = range.id;
@@ -2141,8 +2317,7 @@ function initApp(doc) {
   });
 
   els.gridTheme.addEventListener("change", function () {
-    state.gridTheme = themeById(els.gridTheme.value).id;
-    doc.documentElement.dataset.gridTheme = state.gridTheme;
+    applyTheme(els.gridTheme.value);
     render();
   });
 
@@ -2284,6 +2459,7 @@ if (typeof module === "object" && module.exports) {
     decodeDbcBytes: decodeDbcBytes,
     signalPaint: signalPaint,
     isProprietaryB: isProprietaryB,
+    GRID_THEMES: GRID_THEMES,
     GRID_RANGES: GRID_RANGES,
     rangeById: rangeById,
     rangeCellCount: rangeCellCount,

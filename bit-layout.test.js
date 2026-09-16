@@ -241,3 +241,38 @@ test("every range maps a slot back to the identifier it names", () => {
   assert.strictEqual(rangeById("pdu2").identifierOf(0), 0xf000);
   assert.strictEqual(rangeById("pdu1").identifierOf(0xea), 0xea00);
 });
+
+test("every theme is well formed and every palette is distinguishable", () => {
+  const { GRID_THEMES, signalPaint } = require("./app.js");
+  assert.ok(GRID_THEMES.length >= 15, "expected a decent spread of themes");
+
+  const ids = new Set();
+  for (const theme of GRID_THEMES) {
+    assert.ok(theme.id && theme.label, JSON.stringify(theme.id));
+    assert.strictEqual(ids.has(theme.id), false, "duplicate id " + theme.id);
+    ids.add(theme.id);
+    assert.ok(theme.paints.length >= 8, theme.id + " needs at least eight paints");
+
+    for (const p of theme.paints) {
+      assert.ok(p.h >= 0 && p.h < 360, theme.id + " hue " + p.h);
+      assert.ok(p.c >= 0 && p.c <= 0.4, theme.id + " chroma " + p.c);
+      assert.ok(p.l > 0.2 && p.l <= 1, theme.id + " lightness " + p.l);
+    }
+
+    // Neighbouring files must not land on near-identical colours.
+    for (let i = 1; i < theme.paints.length; i++) {
+      const a = theme.paints[i - 1];
+      const b = theme.paints[i];
+      const dh = Math.min(Math.abs(a.h - b.h), 360 - Math.abs(a.h - b.h));
+      const apart = dh > 12 || Math.abs(a.l - b.l) > 0.06 || Math.abs(a.c - b.c) > 0.04;
+      assert.ok(apart, theme.id + ": paints " + (i - 1) + " and " + i + " are too close");
+    }
+
+    if (theme.field) {
+      assert.ok(theme.field.bg && theme.field.ink && theme.field.rule, theme.id + " field");
+    }
+  }
+
+  // The signal palette inside a message is independent of the grid theme.
+  assert.notStrictEqual(signalPaint(0).hue, signalPaint(1).hue);
+});

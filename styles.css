@@ -508,8 +508,8 @@ main {
 
 @media (prefers-color-scheme: dark) {
   .pgn-grid { --shift: -0.155; }
-  [data-grid-theme="blueprint"] .pgn-grid,
-  [data-grid-theme="phosphor"] .pgn-grid { --shift: 0; }
+  /* A theme with its own field carries its own lightness. */
+  [data-grid-fixed="true"] .pgn-grid { --shift: 0; }
   .pgn.used { box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.11); }
   .pgn.used.shared {
     background-image: repeating-linear-gradient(
@@ -1162,50 +1162,28 @@ dialog.detail[open] { animation: detail-in 140ms ease-out; }
 }
 
 
-/* ---------- fixed grid themes ---------- */
+/* ---------- themes with their own field ----------
+ *
+ * --grid-bg, --grid-ink and --grid-rule are set on the root element from the
+ * theme definition, so a new one needs no CSS of its own. */
 
-/* Cyanotype: pale drafting inks on the Prussian blue that named the blueprint. */
-[data-grid-theme="blueprint"] {
-  --grid-bg: #0a2d4a;
-  --grid-ink: #eaf4ff;
-  --grid-rule: rgba(203, 227, 247, 0.26);
-}
-/* CRT phosphor: dim green field, bright traces. */
-[data-grid-theme="phosphor"] {
-  --grid-bg: #05110b;
-  --grid-ink: #c8ffd9;
-  --grid-rule: rgba(92, 231, 150, 0.2);
-}
-
-[data-grid-theme="blueprint"] .grid-scroll,
-[data-grid-theme="phosphor"] .grid-scroll {
+[data-grid-fixed="true"] .grid-scroll {
   background: var(--grid-bg);
   border-color: var(--grid-rule);
 }
-[data-grid-theme="blueprint"] .pgn.free,
-[data-grid-theme="phosphor"] .pgn.free {
+[data-grid-fixed="true"] .pgn.free {
   background: transparent;
   box-shadow: inset 0 0 0 1px var(--grid-rule);
 }
-[data-grid-theme="blueprint"] .pgn-col-head,
-[data-grid-theme="blueprint"] .pgn-row-label,
-[data-grid-theme="phosphor"] .pgn-col-head,
-[data-grid-theme="phosphor"] .pgn-row-label {
+[data-grid-fixed="true"] .pgn-col-head,
+[data-grid-fixed="true"] .pgn-row-label {
   color: color-mix(in srgb, var(--grid-ink) 62%, transparent);
   border-color: var(--grid-rule);
 }
-[data-grid-theme="blueprint"] .pgn-col-head.tick,
-[data-grid-theme="blueprint"] .pgn-row-label.tick,
-[data-grid-theme="phosphor"] .pgn-col-head.tick,
-[data-grid-theme="phosphor"] .pgn-row-label.tick {
-  color: var(--grid-ink);
-}
-[data-grid-theme="blueprint"] .pgn.used,
-[data-grid-theme="phosphor"] .pgn.used {
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.22);
-}
-[data-grid-theme="blueprint"] .pgn.used.shared,
-[data-grid-theme="phosphor"] .pgn.used.shared {
+[data-grid-fixed="true"] .pgn-col-head.tick,
+[data-grid-fixed="true"] .pgn-row-label.tick { color: var(--grid-ink); }
+[data-grid-fixed="true"] .pgn.used { box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.22); }
+[data-grid-fixed="true"] .pgn.used.shared {
   background-image: repeating-linear-gradient(
     -45deg,
     rgba(0, 0, 0, 0.3) 0 2px,
@@ -1216,61 +1194,30 @@ dialog.detail[open] { animation: detail-in 140ms ease-out; }
 /* ---------- the dialog follows the grid theme ----------
  *
  * By redefining the base tokens rather than restyling each part. Custom
- * properties inherit, so the cards, chips, bit matrix, legend and DBC source
- * panel all follow at once. Overriding a handful of selectors instead is what
- * left pale text on white cards. */
+ * properties inherit, so the cards, chips, bit matrix, signal table and DBC
+ * source panel all follow at once, for any theme with a field. */
 
-[data-grid-theme="blueprint"] dialog.detail {
-  --bg: #0a2d4a;
-  --fg: #eaf4ff;
-  --panel: #0d3557;
-  --panel-2: #114066;
-  --line: rgba(203, 227, 247, 0.2);
-  --line-strong: rgba(203, 227, 247, 0.38);
-  --muted: rgba(234, 244, 255, 0.74);
-  --faint: rgba(234, 244, 255, 0.52);
-  --hover: rgba(234, 244, 255, 0.11);
-  --accent: #eaf4ff;
-  --accent-fg: #0a2d4a;
-  --focus: #9ecbff;
-}
-
-[data-grid-theme="phosphor"] dialog.detail {
-  --bg: #05110b;
-  --fg: #c8ffd9;
-  --panel: #0a1b12;
-  --panel-2: #0f2419;
-  --line: rgba(92, 231, 150, 0.18);
-  --line-strong: rgba(92, 231, 150, 0.34);
-  --muted: rgba(200, 255, 217, 0.72);
-  --faint: rgba(200, 255, 217, 0.48);
-  --hover: rgba(92, 231, 150, 0.12);
-  --accent: #5ce796;
-  --accent-fg: #05110b;
-  --focus: #5ce796;
-}
-
-[data-grid-theme="blueprint"] dialog.detail,
-[data-grid-theme="phosphor"] dialog.detail {
+[data-grid-fixed="true"] dialog.detail {
+  --bg: var(--grid-bg);
+  --fg: var(--grid-ink);
+  --panel: color-mix(in srgb, var(--grid-ink) 7%, var(--grid-bg));
+  --panel-2: color-mix(in srgb, var(--grid-ink) 12%, var(--grid-bg));
+  --line: color-mix(in srgb, var(--grid-ink) 20%, transparent);
+  --line-strong: color-mix(in srgb, var(--grid-ink) 38%, transparent);
+  --muted: color-mix(in srgb, var(--grid-ink) 74%, transparent);
+  --faint: color-mix(in srgb, var(--grid-ink) 52%, transparent);
+  --hover: color-mix(in srgb, var(--grid-ink) 11%, transparent);
+  --accent: var(--grid-ink);
+  --accent-fg: var(--grid-bg);
   border-color: var(--line-strong);
   background: var(--bg);
   color: var(--fg);
 }
-[data-grid-theme="blueprint"] dialog.detail::backdrop,
-[data-grid-theme="phosphor"] dialog.detail::backdrop {
-  background: rgba(0, 0, 0, 0.6);
-}
+[data-grid-fixed="true"] dialog.detail::backdrop { background: rgba(0, 0, 0, 0.6); }
 
 /* The cards sit on the dialog, so they must not paint their own ground. */
-[data-grid-theme="blueprint"] .detail-body .card,
-[data-grid-theme="phosphor"] .detail-body .card {
-  background: transparent;
-}
-
-/* Signal fills are pale by design and carry dark text, so they keep their own
- * colours on a dark field. The empty cells follow the theme. */
-[data-grid-theme="blueprint"] .detail-body .cell.empty,
-[data-grid-theme="phosphor"] .detail-body .cell.empty {
+[data-grid-fixed="true"] .detail-body .card { background: transparent; }
+[data-grid-fixed="true"] .detail-body .cell.empty {
   background: color-mix(in srgb, var(--fg) 7%, transparent);
   border-color: transparent;
 }
